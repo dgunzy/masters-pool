@@ -101,7 +101,7 @@ app.get('/data', (req, res) => {
 fetchGolfData();
 
 // Set up the interval to refresh the data every 15 minutes
-setInterval(fetchGolfData, 15 * 60 * 1000);
+setInterval(fetchGolfData, 5 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
