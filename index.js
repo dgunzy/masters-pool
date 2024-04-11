@@ -1,6 +1,6 @@
 const express = require('express');
 const https = require('https');
-const fs = require('fs');
+const fs = require('fs').promises; // Use the promise-based version of fs
 const csv = require('csv-parse');
 const path = require('path');
 const app = express();
@@ -11,79 +11,128 @@ app.use(express.static('public')); // 'public' is a directory in your project ro
 global.golfData = {}; // This will hold the API response
 global.entryObjects = [];
 
-const csvContent = fs.readFileSync('masters-pool-2.csv', { encoding: 'utf-8' });
+// const csvContent = fs.readFileSync('masters-pool-2.csv', { encoding: 'utf-8' });
+async function fetchCsvContent() {
+  try {
+    const csvFilePath = 'masters-pool-2.csv'; // Adjust the path to where your CSV file is located
+    const csvContent = await fs.readFile(csvFilePath, 'utf-8');
+    return csvContent;
+  } catch (error) {
+    console.error("Error fetching CSV content:", error);
+    throw error; // Rethrow to handle it in the calling context
+  }
+}
+function parseCsvContent(csvContent) {
+  return new Promise((resolve, reject) => {
+    csv.parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true
+    }, (err, records) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(records);
+      }
+    });
+  });
+}
+// csv.parse(csvContent, {
+//   columns: true, // Use the first line as column headers
+//   skip_empty_lines: true
+// }, (err, records) => {
+//   if (err) {
+//     throw err;
+//   }
 
-csv.parse(csvContent, {
-  columns: true, // Use the first line as column headers
-  skip_empty_lines: true
-}, (err, records) => {
-  if (err) {
-    throw err;
+//   // Extract headers (column names) from the first record
+//   const headers = records.length > 0 ? Object.keys(records[0]) : [];
+
+//   // Map each header (except 'Entry') to an object
+//   const entryObjects = headers.filter(header => header !== 'Entry').map(header => {
+//     const entryObject = { name: header };
+//     records.forEach(record => {
+//       // Use the header to reference the value and 'Entry' for the property name
+//       entryObject[record.Entry] = record[header];
+//     });
+//     return entryObject;
+//   });
+
+//   global.entryObjects = entryObjects;  // Now, you can use entryObjects as you need in your application
+// });
+
+async function fetchGolfData() {
+  // Reset global objects
+  global.golfData = {}; 
+  global.entryObjects = [];
+
+  // Assume you have a function to asynchronously fetch and read your CSV content
+  // This could be fetching from a remote source or reading from a local file
+  const csvContent = await fetchCsvContent(); // This fetches the actual CSV content now
+const records = await parseCsvContent(csvContent); // This parses the CSV content
+  // Parse the CSV content and populate global.entryObjects
+  try {
+      const records = await parseCsvContent(csvContent); // Assume this returns the parsed records
+      const headers = records.length > 0 ? Object.keys(records[0]) : [];
+
+      global.entryObjects = headers.filter(header => header !== 'Entry').map(header => {
+          const entryObject = { name: header };
+          records.forEach(record => {
+              entryObject[record.Entry] = record[header];
+          });
+          return entryObject;
+      });
+  } catch (error) {
+      console.error("Error parsing CSV content:", error);
+      return; // Exit the function if there's an error parsing the CSV
   }
 
-  // Extract headers (column names) from the first record
-  const headers = records.length > 0 ? Object.keys(records[0]) : [];
+  // Proceed with fetching the golf data as before
+  const options = {
+      method: 'GET',
+      hostname: process.env.RAPIDAPI_HOST,
+      path: '/leaderboard?orgId=1&tournId=014&year=2024',
+      headers: {
+          'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+          'X-RapidAPI-Host': process.env.RAPIDAPI_HOST
+      }
+  };
 
-  // Map each header (except 'Entry') to an object
-  const entryObjects = headers.filter(header => header !== 'Entry').map(header => {
-    const entryObject = { name: header };
-    records.forEach(record => {
-      // Use the header to reference the value and 'Entry' for the property name
-      entryObject[record.Entry] = record[header];
-    });
-    return entryObject;
+  const request = https.request(options, (response) => {
+      let data = '';
+
+      response.on('data', (chunk) => {
+          data += chunk;
+      });
+
+      response.on('end', () => {
+          try {
+              const parsedData = JSON.parse(data);
+
+              if (Array.isArray(parsedData.leaderboardRows)) {
+                  // Calculate payouts based on the latest data
+                  const payouts = calculatePayoutsByTotal(parsedData.leaderboardRows, payoutStructure);
+
+                  // Update the global entryObjects with these payouts
+                  updateEntryObjectsWithPayouts(payouts);
+
+                  // Since global.golfData is meant to hold API response, update it as necessary
+                  global.golfData = parsedData;
+
+                  console.log("Golf data updated with payouts.");
+              } else {
+                  console.error("leaderboardRows is missing or not an array");
+              }
+          } catch (error) {
+              console.error("Error parsing golf data:", error);
+          }
+      });
   });
 
-  global.entryObjects = entryObjects;  // Now, you can use entryObjects as you need in your application
-});
+  request.on('error', (error) => {
+      console.error("Error fetching golf data:", error);
+  });
 
-function fetchGolfData() {
-    const options = {
-        method: 'GET',
-        hostname: process.env.RAPIDAPI_HOST,
-        path: '/leaderboard?orgId=1&tournId=014&year=2024',
-        headers: {
-            'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-            'X-RapidAPI-Host': process.env.RAPIDAPI_HOST
-        }
-    };
-
-    const request = https.request(options, (response) => {
-        let data = '';
-
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
-
-        response.on('end', () => {
-            try {
-              const parsedData = JSON.parse(data);
-      
-              if (Array.isArray(parsedData.leaderboardRows)) {
-                // Calculate payouts based on the latest data
-                const payouts = calculatePayoutsByTotal(parsedData.leaderboardRows, payoutStructure);
-      
-                // Update the global entryObjects with these payouts
-                updateEntryObjectsWithPayouts(payouts);
-      
-                // Since global.golfData is meant to hold API response, update it as necessary
-                global.golfData = parsedData;
-      
-                console.log("Golf data updated with payouts.");
-              } else {
-                console.error("leaderboardRows is missing or not an array");
-              }
-            } catch (error) {
-              console.error("Error parsing golf data:", error);
-            }
-          });
-        });
-      
-        request.on('error', (error) => {
-          console.error("Error fetching golf data:", error);
-        });
-      
-        request.end();
+  request.end();
 }
 
 
