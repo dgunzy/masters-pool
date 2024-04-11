@@ -6,6 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 require('dotenv').config();
+app.use(express.static('public')); // 'public' is a directory in your project root for static files
 
 global.golfData = {}; // This will hold the API response
 global.entryObjects = [];
@@ -83,23 +84,18 @@ function fetchGolfData() {
         });
       
         request.end();
-      }
+}
 
 
 
-      app.get('/', (req, res) => {
-        // Check if the global.entryObjects array has been populated and has entries
-        if (global.entryObjects && global.entryObjects.length > 0) {
-            // Sort the entry objects by "Total Payout" in descending order
-            const sortedEntries = global.entryObjects.sort((a, b) => b['Total Payout'] - a['Total Payout']);
-    
-            // Send the sorted entries as JSON
-            res.json(sortedEntries);
-        } else {
-            // If the data is not yet available, send a message indicating so
-            res.status(503).send('Golf data is not available yet. Please try again later.');
-        }
-    });
+app.get('/data', (req, res) => {
+    if (global.entryObjects) {
+        console.log("Successfully accessed route"); 
+        res.json(global.entryObjects);
+    } else {
+        res.status(503).send('Golf data is not available yet. Please try again later.');
+    }
+});
 
 
 fetchGolfData();
