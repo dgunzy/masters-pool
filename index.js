@@ -192,9 +192,16 @@ function adjustValuesAndCalculateTotal() {
         Object.keys(entry).forEach(group => {
             if (group === '1RL Payout') {
                 entry[group] = 0; // Set '1RL Payout' to 0
+                if (entry['1RL'].toLowerCase().includes('dechambeau')) {
+                  entry['1RL Payout'] = 500000;// Add $500,000 to the total payout
+
+              }
             } else if (group === 'Mutt Payout') {
                 entry[group] = entry[group] * 2; // Double the 'Mutt Payout'
             }
+            else if (group === 'Old Mutt Payout') {
+              entry[group] = entry[group] * 2; // Double the 'Mutt Payout'
+            } 
 
             // If the group ends with 'Payout', add it to the totalPayout
             if (group.endsWith('Payout')) {
