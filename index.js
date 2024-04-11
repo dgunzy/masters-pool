@@ -90,7 +90,7 @@ function fetchGolfData() {
 
 app.get('/data', (req, res) => {
     if (global.entryObjects) {
-        console.log("Successfully accessed route"); 
+        // console.log("Successfully accessed route"); 
         res.json(global.entryObjects);
     } else {
         res.status(503).send('Golf data is not available yet. Please try again later.');
@@ -101,7 +101,7 @@ app.get('/data', (req, res) => {
 fetchGolfData();
 
 // Set up the interval to refresh the data every 15 minutes
-// setInterval(fetchGolfData, 15 * 60 * 1000);
+setInterval(fetchGolfData, 15 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
