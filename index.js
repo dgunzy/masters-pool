@@ -107,23 +107,33 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 function updateEntryObjectsWithPayouts(payouts) {
+    // console.log("Available names in payouts:", Object.keys(payouts));
+
     global.entryObjects.forEach(entry => {
-      // Iterate through each group in the entry
-      Object.keys(entry).forEach(group => {
-        if (group.startsWith('Group') || group === 'Mutt' || group === 'Old Mutt' || group === 'WC' || group === '1RL') {
-          const golferName = entry[group];
-          // Check if the golferName matches any key in the payouts object
-          if (payouts[golferName]) {
-            // If a match is found, add/update the payout information for this golfer in the entry
-            entry[group + ' Payout'] = payouts[golferName];
-          }
-        }
-      });
+        Object.keys(entry).forEach(group => {
+            if (group.startsWith('Group') || group === 'Mutt' || group === 'Old Mutt' || group === 'WC' || group === '1RL') {
+                const golferName = entry[group].toLowerCase(); // Convert entry golferName to lowercase
+                
+                // Attempt to find a matching name in the payouts object (also in lowercase)
+                const payoutName = Object.keys(payouts).find(payoutKey =>
+                    payoutKey.toLowerCase().includes(golferName) || golferName.includes(payoutKey.toLowerCase())
+                );
+
+                if (payoutName) {
+                    // If a partial match is found, update the entry with the payout information
+                    entry[group + ' Payout'] = payouts[payoutName];
+                } else {
+                    // Log the mismatch for further inspection
+                    console.log(`No payout found for: ${golferName}. Attempting to match against:`, Object.keys(payouts).map(key => key.toLowerCase()));
+                }
+            }
+        });
     });
-  
+
     // Optionally log the updated entryObjects to verify
-    console.log(global.entryObjects);
-  }
+    // console.log(global.entryObjects);
+}
+
 
 // Assume 'leaderboard' is an array of player objects that includes their position
 function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
