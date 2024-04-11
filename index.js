@@ -87,15 +87,19 @@ function fetchGolfData() {
 
 
 
-app.get('/', (req, res) => {
-    // Check if the global.golfData object has been populated
-    if (Object.keys(global.golfData).length > 0) {
-        res.json(global.golfData); // Send the golf data as JSON
-    } else {
-        // If the data is not yet available, send a message indicating so
-        res.status(503).send('Golf data is not available yet. Please try again later.');
-    }
-});
+      app.get('/', (req, res) => {
+        // Check if the global.entryObjects array has been populated and has entries
+        if (global.entryObjects && global.entryObjects.length > 0) {
+            // Sort the entry objects by "Total Payout" in descending order
+            const sortedEntries = global.entryObjects.sort((a, b) => b['Total Payout'] - a['Total Payout']);
+    
+            // Send the sorted entries as JSON
+            res.json(sortedEntries);
+        } else {
+            // If the data is not yet available, send a message indicating so
+            res.status(503).send('Golf data is not available yet. Please try again later.');
+        }
+    });
 
 
 fetchGolfData();
@@ -129,12 +133,37 @@ function updateEntryObjectsWithPayouts(payouts) {
             }
         });
     });
+    adjustValuesAndCalculateTotal();
 
     // Optionally log the updated entryObjects to verify
     // console.log(global.entryObjects);
 }
 
+function adjustValuesAndCalculateTotal() {
+    global.entryObjects.forEach(entry => {
+        let totalPayout = 0; // Initialize total payout for the entry
 
+        // Adjust specific payouts and accumulate the total payout
+        Object.keys(entry).forEach(group => {
+            if (group === '1RL Payout') {
+                entry[group] = 0; // Set '1RL Payout' to 0
+            } else if (group === 'Mutt Payout') {
+                entry[group] = entry[group] * 2; // Double the 'Mutt Payout'
+            }
+
+            // If the group ends with 'Payout', add it to the totalPayout
+            if (group.endsWith('Payout')) {
+                totalPayout += entry[group];
+            }
+        });
+
+        // Attach the total payout to the entry
+        entry['Total Payout'] = totalPayout;
+    });
+
+    // Optionally log the updated entryObjects to verify
+    // console.log(global.entryObjects);
+}
 // Assume 'leaderboard' is an array of player objects that includes their position
 function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
     // Sort players by their total score in ascending order (lower is better)
