@@ -39,9 +39,11 @@
                     const muttPayout = entry['Mutt Payout'] ? (entry['Mutt Payout']).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A";
                     const oldMuttPayout = entry['Old Mutt Payout'] ? entry['Old Mutt Payout'].toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A";
                     const firstRoundLeaderPayout = entry['1RL Payout'] ? entry['1RL Payout'].toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A";
+                    const wcPayout = entry['WC Payout'] ? entry['WC Payout'].toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A";
 
                     entryContent += `<div>${entry.Mutt} (Mutt): ${muttPayout} (Doubled)</div>`;
                     entryContent += `<div>${entry['Old Mutt']} (Old Mutt): ${oldMuttPayout}(Doubled)</div>`;
+                    entryContent += `<div>${entry.WC} (Wildcard): ${wcPayout}</div>`; // Display WC player and payout
                     entryContent += `<div>${entry['1RL']} (1RL): ${firstRoundLeaderPayout}</div>`;
 
                     entryDiv.innerHTML = entryContent;
