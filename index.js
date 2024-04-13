@@ -68,7 +68,7 @@ async function fetchGolfData() {
   // Assume you have a function to asynchronously fetch and read your CSV content
   // This could be fetching from a remote source or reading from a local file
   const csvContent = await fetchCsvContent(); // This fetches the actual CSV content now
-const records = await parseCsvContent(csvContent); // This parses the CSV content
+  const records = await parseCsvContent(csvContent); // This parses the CSV content
   // Parse the CSV content and populate global.entryObjects
   try {
       const records = await parseCsvContent(csvContent); // Assume this returns the parsed records
@@ -107,6 +107,7 @@ const records = await parseCsvContent(csvContent); // This parses the CSV conten
       response.on('end', () => {
           try {
               const parsedData = JSON.parse(data);
+              // console.log(parsedData)
 
               if (Array.isArray(parsedData.leaderboardRows)) {
                   // Calculate payouts based on the latest data
@@ -173,7 +174,7 @@ function updateEntryObjectsWithPayouts(payouts) {
                     entry[group + ' Payout'] = payouts[payoutName];
                 } else {
                     // Log the mismatch for further inspection
-                    console.log(`No payout found for: ${golferName}. Attempting to match against:`, Object.keys(payouts).map(key => key.toLowerCase()));
+                    // console.log(`No payout found for: ${golferName}. Attempting to match against:`, Object.keys(payouts).map(key => key.toLowerCase()));
                 }
             }
         });
@@ -218,8 +219,9 @@ function adjustValuesAndCalculateTotal() {
 }
 // Assume 'leaderboard' is an array of player objects that includes their position
 function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
+    const activePlayers = leaderboardRows.filter(player => player.status !== 'cut');
     // Sort players by their total score in ascending order (lower is better)
-    const sortedLeaderboard = leaderboardRows.sort((a, b) => parseFloat(a.total) - parseFloat(b.total));
+    const sortedLeaderboard = activePlayers.sort((a, b) => parseFloat(a.total) - parseFloat(b.total));
   
     // Initialize an object to hold the payouts
     const payouts = {};
