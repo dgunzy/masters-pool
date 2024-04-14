@@ -43,6 +43,7 @@
 
                     entryContent += `<div style="color: red;">${entry.Mutt} (Mutt): ${muttPayout}</div>`;
                     entryContent += `<div style="color: red;">${entry['Old Mutt']} (Old Mutt): ${oldMuttPayout}</div>`;// Display WC player and payout
+                    entryContent += `<div>${entry.WC} (Wildcard): ${wcPayout}</div>`; // Display WC player and payout
                     entryContent += `<div>${entry['1RL']} (1RL): ${firstRoundLeaderPayout}</div>`;
 
                     entryDiv.innerHTML = entryContent;
