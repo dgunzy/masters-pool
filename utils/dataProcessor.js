@@ -6,24 +6,22 @@
 function updateEntryObjectsWithPayouts(payouts, year) {
   global[`entryObjects${year}`].forEach((entry) => {
     Object.keys(entry).forEach((group) => {
-      if (
-        group.startsWith("Group") ||
-        group === "Mutt" ||
-        group === "Old Mutt" ||
-        group === "WC" ||
-        group === "1RL"
-      ) {
-        const golferName = entry[group].toLowerCase();
-
-        // Try to find a matching name in the payouts object
-        const payoutName = Object.keys(payouts).find(
-          (payoutKey) =>
-            payoutKey.toLowerCase().includes(golferName) ||
-            golferName.includes(payoutKey.toLowerCase())
-        );
-
-        if (payoutName) {
-          entry[group + " Payout"] = payouts[payoutName];
+      // Handle different naming conventions between 2024 and 2025
+      if (year === "2024") {
+        if (
+          group.startsWith("Group") ||
+          group === "Mutt" ||
+          group === "Old Mutt" ||
+          group === "WC" ||
+          group === "1RL"
+        ) {
+          const golferName = entry[group].toLowerCase();
+          matchGolferAndAssignPayout(golferName, group, entry, payouts);
+        }
+      } else if (year === "2025") {
+        if (group.startsWith("Group") || group === "WC" || group === "1RL") {
+          const golferName = entry[group].toLowerCase();
+          matchGolferAndAssignPayout(golferName, group, entry, payouts);
         }
       }
     });
@@ -31,6 +29,26 @@ function updateEntryObjectsWithPayouts(payouts, year) {
 
   // Apply special rules and calculate totals
   adjustValuesAndCalculateTotal(year);
+}
+
+/**
+ * Helper function to match golfer names and assign payouts
+ * @param {string} golferName - Lowercase golfer name to match
+ * @param {string} group - Group key
+ * @param {Object} entry - Entry object to update
+ * @param {Object} payouts - Payouts by player name
+ */
+function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
+  // Try to find a matching name in the payouts object
+  const payoutName = Object.keys(payouts).find(
+    (payoutKey) =>
+      payoutKey.toLowerCase().includes(golferName) ||
+      golferName.includes(payoutKey.toLowerCase())
+  );
+
+  if (payoutName) {
+    entry[group + " Payout"] = payouts[payoutName];
+  }
 }
 
 /**
@@ -59,17 +77,16 @@ function adjustValuesAndCalculateTotal(year) {
         }
       });
     } else if (year === "2025") {
-      // 2025 rules - currently the same as 2024, but kept separate for future modifications
+      // 2025 rules with updated group structure
       Object.keys(entry).forEach((group) => {
         if (group === "1RL Payout") {
-          entry[group] = 0;
-          // For 2025, you can modify this condition to match the first-round leader
-          // For now, using the same logic as 2024
-          if (entry["1RL"].toLowerCase().includes("dechambeau")) {
-            entry[group] = 500000;
-          }
-        } else if (group === "Mutt Payout" || group === "Old Mutt Payout") {
+          entry[group] = entry[group] || 0;
+        } else if (group === "Group 9 (M) Payout") {
+          // Mutt - Double the prize money for Group 9
           entry[group] = (entry[group] || 0) * 2;
+        } else if (group === "Group 10 (OM) Payout") {
+          // Old Mutt - Triple the prize money for Group 10
+          entry[group] = (entry[group] || 0) * 3;
         }
 
         if (group.endsWith("Payout")) {

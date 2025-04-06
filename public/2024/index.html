@@ -64,15 +64,18 @@
         position: relative;
       }
 
-      .cursor-pointer::after {
-        content: "▼";
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 12px;
-        color: #888;
-        transition: transform 0.3s ease;
+      /* Show dropdown indicator only on mobile */
+      @media (max-width: 768px) {
+        .cursor-pointer::after {
+          content: "▼";
+          position: absolute;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 12px;
+          color: #888;
+          transition: transform 0.3s ease;
+        }
       }
 
       /* Animation for expanding/collapsing */
@@ -134,7 +137,11 @@
             const header = document.createElement("div");
             header.className =
               "p-4 cursor-pointer flex flex-wrap justify-between items-center";
-            header.onclick = () => toggleCardContent(cardId);
+
+            // Only make it clickable on mobile
+            if (window.innerWidth < 768) {
+              header.onclick = () => toggleCardContent(cardId);
+            }
             header.innerHTML = `
               <h2 class="text-xl font-bold text-green-800">${entry.name}</h2>
               <div class="text-right">

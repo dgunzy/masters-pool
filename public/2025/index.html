@@ -31,6 +31,11 @@
         <p class="text-gray-600 mt-2">
           Live standings - updates every 5 minutes
         </p>
+        <div class="mt-3 text-sm bg-green-50 p-2 rounded inline-block">
+          <span class="font-semibold">Special Rules:</span>
+          Group 9 (M) prize money is doubled, Group 10 (OM) prize money is
+          tripled
+        </div>
       </div>
     </header>
 
@@ -84,15 +89,18 @@
         position: relative;
       }
 
-      .cursor-pointer::after {
-        content: "▼";
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 12px;
-        color: #888;
-        transition: transform 0.3s ease;
+      /* Show dropdown indicator only on mobile */
+      @media (max-width: 768px) {
+        .cursor-pointer::after {
+          content: "▼";
+          position: absolute;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 12px;
+          color: #888;
+          transition: transform 0.3s ease;
+        }
       }
 
       /* Animation for expanding/collapsing */
@@ -159,7 +167,11 @@
               const header = document.createElement("div");
               header.className =
                 "p-4 cursor-pointer flex flex-wrap justify-between items-center";
-              header.onclick = () => toggleCardContent(cardId);
+
+              // Only make it clickable on mobile
+              if (window.innerWidth < 768) {
+                header.onclick = () => toggleCardContent(cardId);
+              }
               header.innerHTML = `
                 <h2 class="text-xl font-bold text-green-800">${entry.name}</h2>
                 <div class="text-right">
@@ -196,21 +208,27 @@
                         currency: "USD",
                       })
                     : "$0";
+
+                  // Determine if this is a special group (Mutt or Old Mutt)
+                  const isSpecialGroup =
+                    groupKey.includes("(M)") || groupKey.includes("(OM)");
+                  const specialClass = isSpecialGroup ? "bg-red-50" : "";
+                  const specialTextColor = isSpecialGroup
+                    ? "text-red-700"
+                    : "text-green-700";
+
                   entryContent += `<div class="p-2 border rounded ${
-                    entry[payoutKey] ? "bg-green-50" : ""
-                  }">${groupKey}: <span class="font-medium">${golfer}</span><br/><span class="text-green-700">${payout}</span></div>`;
+                    entry[payoutKey]
+                      ? isSpecialGroup
+                        ? "bg-red-50"
+                        : "bg-green-50"
+                      : ""
+                  }">${groupKey}: <span class="font-medium">${golfer}</span><br/><span class="${specialTextColor}">${payout}</span></div>`;
                 });
 
-              // Add special categories with highlighting
-              const muttPayout = entry["Mutt Payout"]
-                ? entry["Mutt Payout"].toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  })
-                : "$0";
-
-              const oldMuttPayout = entry["Old Mutt Payout"]
-                ? entry["Old Mutt Payout"].toLocaleString("en-US", {
+              // Add WC and 1RL
+              const wcPayout = entry["WC Payout"]
+                ? entry["WC Payout"].toLocaleString("en-US", {
                     style: "currency",
                     currency: "USD",
                   })
@@ -223,27 +241,6 @@
                   })
                 : "$0";
 
-              const wcPayout = entry["WC Payout"]
-                ? entry["WC Payout"].toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  })
-                : "$0";
-
-              entryContent += `<div class="p-2 border rounded ${
-                entry["Mutt Payout"] ? "bg-red-50" : ""
-              }" style="color: ${
-                entry["Mutt Payout"] ? "red" : "inherit"
-              }">Mutt: <span class="font-medium">${
-                entry.Mutt
-              }</span><br/><span class="text-red-700">${muttPayout}</span></div>`;
-              entryContent += `<div class="p-2 border rounded ${
-                entry["Old Mutt Payout"] ? "bg-red-50" : ""
-              }" style="color: ${
-                entry["Old Mutt Payout"] ? "red" : "inherit"
-              }">Old Mutt: <span class="font-medium">${
-                entry["Old Mutt"]
-              }</span><br/><span class="text-red-700">${oldMuttPayout}</span></div>`;
               entryContent += `<div class="p-2 border rounded ${
                 entry["WC Payout"] ? "bg-green-50" : ""
               }">Wildcard: <span class="font-medium">${

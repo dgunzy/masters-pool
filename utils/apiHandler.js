@@ -58,7 +58,7 @@ async function fetchGolfDataForYear(year) {
     const records = await parseCsvContent(csvContent);
 
     // Process records to create entry objects
-    global[`entryObjects${year}`] = processRecords(records);
+    global[`entryObjects${year}`] = processRecords(records, year);
 
     // Fetch tournament data from API
     await fetchTournamentData(year);

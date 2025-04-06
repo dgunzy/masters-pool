@@ -50,9 +50,10 @@ function parseCsvContent(csvContent) {
 /**
  * Processes CSV records into entry objects
  * @param {Array} records - CSV parsed records
+ * @param {string} year - Year of the Masters tournament
  * @returns {Array} - Entry objects
  */
-function processRecords(records) {
+function processRecords(records, year) {
   const headers = records.length > 0 ? Object.keys(records[0]) : [];
 
   const entryObjects = headers
