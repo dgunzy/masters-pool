@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Stop and remove existing container (ignore errors if it doesn't exist)
 docker stop masters-pool || true
 docker rm masters-pool || true
@@ -15,4 +14,8 @@ docker run -d -p 3000:3000 \
   --name masters-pool \
   masters-pool-app
 
-echo "Container deployed successfully!"
+echo "Container deployed successfully! Tailing logs now (press Ctrl+C to stop viewing logs)..."
+echo "------------------------"
+
+# Tail the logs with -f (follow) option
+docker logs -f masters-pool

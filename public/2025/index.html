@@ -78,9 +78,53 @@
       .fade-in {
         animation: fadeIn 0.5s ease-in;
       }
+
+      /* Add a visual indicator for expandable cards */
+      .cursor-pointer {
+        position: relative;
+      }
+
+      .cursor-pointer::after {
+        content: "▼";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #888;
+        transition: transform 0.3s ease;
+      }
+
+      /* Animation for expanding/collapsing */
+      .block {
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes collapseIn {
+        from {
+          opacity: 0;
+          max-height: 0;
+        }
+        to {
+          opacity: 1;
+          max-height: 1000px;
+        }
+      }
     </style>
 
     <script>
+      // Function to toggle card content visibility
+      function toggleCardContent(cardId) {
+        const content = document.getElementById(cardId);
+        if (content.classList.contains("hidden")) {
+          content.classList.remove("hidden");
+          content.classList.add("block");
+        } else {
+          content.classList.remove("block");
+          content.classList.add("hidden");
+        }
+      }
+
       function fetchAndDisplayData() {
         // Update last refreshed time
         const now = new Date();
@@ -107,23 +151,34 @@
             sortedData.forEach((entry, index) => {
               const entryDiv = document.createElement("div");
               entryDiv.className =
-                "mb-4 p-4 bg-white shadow rounded-lg mx-auto max-w-4xl fade-in";
+                "mb-4 bg-white shadow rounded-lg mx-auto max-w-4xl fade-in";
+
+              const cardId = `card-content-${index}`;
+
+              // Create header (always visible)
+              const header = document.createElement("div");
+              header.className =
+                "p-4 cursor-pointer flex flex-wrap justify-between items-center";
+              header.onclick = () => toggleCardContent(cardId);
+              header.innerHTML = `
+                <h2 class="text-xl font-bold text-green-800">${entry.name}</h2>
+                <div class="text-right">
+                  <div class="font-bold text-lg">${(
+                    entry["Total Payout"] || 0
+                  ).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })}</div>
+                  <div class="text-gray-600">Position: ${index + 1}</div>
+                </div>
+              `;
+
+              // Create content (collapsible)
+              const content = document.createElement("div");
+              content.id = cardId;
+              content.className = "p-4 pt-0 md:block hidden"; // Hidden on mobile by default
 
               let entryContent = `
-                <div class="flex flex-wrap justify-between items-center mb-4">
-                  <h2 class="text-xl font-bold text-green-800">${
-                    entry.name
-                  }</h2>
-                  <div class="text-right">
-                    <div class="font-bold text-lg">${(
-                      entry["Total Payout"] || 0
-                    ).toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}</div>
-                    <div class="text-gray-600">Position: ${index + 1}</div>
-                  </div>
-                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               `;
 
@@ -201,7 +256,11 @@
               }</span><br/><span class="text-green-700">${firstRoundLeaderPayout}</span></div>`;
 
               entryContent += `</div>`;
-              entryDiv.innerHTML = entryContent;
+              content.innerHTML = entryContent;
+
+              // Append header and content to the entry div
+              entryDiv.appendChild(header);
+              entryDiv.appendChild(content);
               entriesContainer.appendChild(entryDiv);
             });
           })
