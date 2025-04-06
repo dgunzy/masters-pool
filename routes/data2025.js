@@ -14,8 +14,7 @@ router.get("/", (req, res) => {
     // Return "not started" status with tournament dates
     res.json({
       status: "not_started",
-      message:
-        "The 2025 Masters Tournament has not started yet. Check back April 10-13, 2025.",
+      message: "The 2025 Masters Tournament has not started yet.",
       startDate: "2025-04-10",
     });
   } else if (global.entryObjects2025 && global.entryObjects2025.length > 0) {

@@ -67,12 +67,16 @@ function isDuringTournamentDates() {
 function determinePollInterval() {
   const fiveMinutes = 5 * 60 * 1000;
   const oneHour = 60 * 60 * 1000;
+  const tenHours = 60 * 60 * 1000 * 10;
 
   // If it's during tournament dates and hours, poll every 5 minutes
   if (isDuringTournamentDates() && isDuringTournamentHours()) {
     console.log("Tournament in progress - polling every 5 minutes");
     return fiveMinutes;
   }
+
+  console.log("Tournament not in progress - polling every 10 hours");
+  return tenHours;
 
   // Otherwise, poll every hour
   console.log("Tournament not in progress - polling every hour");

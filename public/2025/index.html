@@ -152,13 +152,60 @@
       // Listen for window resize events
       window.addEventListener("resize", handleResize);
 
-      // Function to calculate days until tournament
-      function getDaysUntilTournament(startDate) {
+      // Function to calculate time until tournament
+      function getTimeUntilTournament(startDate) {
         const now = new Date();
-        const tournamentStart = new Date(startDate);
+        // Tournament start at 7:30 AM ET on April 10, 2025
+        const tournamentStart = new Date(`${startDate}T07:30:00-04:00`);
         const diffTime = tournamentStart - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
+
+        // Calculate days, hours, minutes, seconds
+        const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffTime % (1000 * 60)) / 1000);
+
+        return { days, hours, minutes, seconds, totalMs: diffTime };
+      }
+
+      // Function to update countdown timer
+      function updateCountdown(startDate, elementId) {
+        const countdownElement = document.getElementById(elementId);
+        if (!countdownElement) return;
+
+        const countdown = getTimeUntilTournament(startDate);
+
+        // Format the countdown display
+        countdownElement.innerHTML = `
+          <div class="grid grid-cols-4 gap-2 text-center">
+            <div class="bg-green-600 rounded p-2">
+              <div class="text-2xl font-bold text-white">${countdown.days}</div>
+              <div class="text-xs text-green-100">DAYS</div>
+            </div>
+            <div class="bg-green-600 rounded p-2">
+              <div class="text-2xl font-bold text-white">${countdown.hours}</div>
+              <div class="text-xs text-green-100">HOURS</div>
+            </div>
+            <div class="bg-green-600 rounded p-2">
+              <div class="text-2xl font-bold text-white">${countdown.minutes}</div>
+              <div class="text-xs text-green-100">MINS</div>
+            </div>
+            <div class="bg-green-600 rounded p-2">
+              <div class="text-2xl font-bold text-white">${countdown.seconds}</div>
+              <div class="text-xs text-green-100">SECS</div>
+            </div>
+          </div>
+        `;
+
+        // Continue updating every second until tournament starts
+        if (countdown.totalMs > 0) {
+          setTimeout(() => updateCountdown(startDate, elementId), 1000);
+        } else {
+          // Tournament has started
+          window.location.reload();
+        }
       }
 
       function fetchAndDisplayData() {
@@ -181,7 +228,7 @@
 
             // Check if tournament has not started
             if (data.status === "not_started") {
-              const daysUntil = getDaysUntilTournament(data.startDate);
+              const countdownId = "tournament-countdown";
 
               // Create not-started message
               const messageDiv = document.createElement("div");
@@ -194,13 +241,18 @@
                   </svg>
                   <h2 class="text-2xl font-bold text-gray-800 mb-3">Coming Soon!</h2>
                   <p class="text-gray-600 mb-6">${data.message}</p>
-                  <div class="bg-green-50 p-4 rounded-lg mb-6">
-                    <p class="text-lg font-semibold text-green-800">${daysUntil} days until tee time</p>
+                  <div class="mb-6">
+                    <p class="text-lg font-semibold text-green-800 mb-3">Countdown to Tee Time</p>
+                    <div id="${countdownId}" class="mb-3">Loading countdown...</div>
+                    <p class="text-xs text-gray-500">First tee time: 7:30 AM ET, April 10, 2025</p>
                   </div>
                   <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
                 </div>
               `;
               entriesContainer.appendChild(messageDiv);
+
+              // Initialize the countdown timer
+              updateCountdown(data.startDate, countdownId);
 
               // Hide the refresh button since it's not needed yet
               document.getElementById("refreshButton").style.display = "none";
