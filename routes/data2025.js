@@ -16,10 +16,20 @@ router.get("/", (req, res) => {
       status: "not_started",
       message: "The 2025 Masters Tournament has not started yet.",
       startDate: "2025-04-10",
+      lastUpdated: global.lastUpdated2025
+        ? global.lastUpdated2025.toISOString()
+        : null,
     });
   } else if (global.entryObjects2025 && global.entryObjects2025.length > 0) {
     // Tournament has started or we're in development mode, return the data
-    res.json(global.entryObjects2025);
+    // Always return the in-memory data, regardless of when it was last updated
+    res.json({
+      status: "active",
+      data: global.entryObjects2025,
+      lastUpdated: global.lastUpdated2025
+        ? global.lastUpdated2025.toISOString()
+        : null,
+    });
   } else {
     // No data available
     res

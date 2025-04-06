@@ -213,7 +213,7 @@
         const now = new Date();
         document.getElementById(
           "lastUpdated"
-        ).textContent = `Last updated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+        ).textContent = `Page refreshed: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
 
         fetch("/data/2025")
           .then((response) => {
@@ -247,6 +247,9 @@
                     <p class="text-xs text-gray-500">First tee time: 7:30 AM ET, April 10, 2025</p>
                   </div>
                   <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
+                  <p class="text-xs text-gray-500 mt-2">Data last updated: ${new Date(
+                    data.lastUpdated
+                  ).toLocaleString()}</p>
                 </div>
               `;
               entriesContainer.appendChild(messageDiv);
@@ -264,9 +267,15 @@
             document.getElementById("refreshButton").style.display = "block";
 
             // Process normal tournament data
-            const sortedData = data.sort(
+            const sortedData = data.data.sort(
               (a, b) => b["Total Payout"] - a["Total Payout"]
             );
+
+            // Update last updated display
+            const lastUpdatedDate = new Date(data.lastUpdated);
+            document.getElementById(
+              "lastUpdated"
+            ).textContent = `Data last updated: ${lastUpdatedDate.toLocaleString()}`;
 
             sortedData.forEach((entry, index) => {
               const entryDiv = document.createElement("div");

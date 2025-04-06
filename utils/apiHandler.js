@@ -7,6 +7,7 @@ const {
 const {
   calculatePayoutsByTotal,
   updateEntryObjectsWithPayouts,
+  updateFirstRoundLeaderPayouts,
 } = require("./dataProcessor");
 
 // Remove the global import of payoutStructure as we're now using year-specific ones
@@ -97,6 +98,9 @@ function fetchTournamentData(year) {
           const parsedData = JSON.parse(data);
 
           if (Array.isArray(parsedData.leaderboardRows)) {
+            // Update the global golf data first so it's available for first round leader calculations
+            global[`golfData${year}`] = parsedData;
+
             // Calculate payouts based on the latest data
             const payouts = calculatePayoutsByTotal(
               parsedData.leaderboardRows,
@@ -104,10 +108,8 @@ function fetchTournamentData(year) {
             );
 
             // Update the global entryObjects with these payouts
+            // For 2025, this will also check for first round leaders if the data is available
             updateEntryObjectsWithPayouts(payouts, year);
-
-            // Update the global golf data
-            global[`golfData${year}`] = parsedData;
 
             console.log(`Golf data for ${year} updated with payouts.`);
             resolve(parsedData);

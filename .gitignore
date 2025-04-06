@@ -1,3 +1,4 @@
 .env
 .sops.yaml
 note.txt
+catout.sh

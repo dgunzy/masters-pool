@@ -75,12 +75,15 @@ function determinePollInterval() {
     return fiveMinutes;
   }
 
+  // If it's during tournament dates but outside active hours, poll every hour
+  if (isDuringTournamentDates()) {
+    console.log("Tournament day but outside active hours - polling every hour");
+    return oneHour;
+  }
+
+  // Otherwise (not tournament dates), poll every 10 hours
   console.log("Tournament not in progress - polling every 10 hours");
   return tenHours;
-
-  // Otherwise, poll every hour
-  console.log("Tournament not in progress - polling every hour");
-  return oneHour;
 }
 
 /**

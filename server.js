@@ -8,12 +8,11 @@ require("dotenv").config();
 const { fetchGolfData2024, fetchGolfData2025 } = require("./utils/apiHandler");
 const data2024Routes = require("./routes/data2024");
 const data2025Routes = require("./routes/data2025");
+const fs = require("fs").promises;
 const {
   determinePollInterval,
   hasTournamentStarted,
 } = require("./utils/timingUtils");
-const fs = require("fs").promises;
-
 // Serve static files from the public directory
 app.use(express.static("public"));
 
@@ -22,6 +21,7 @@ global.golfData2024 = {};
 global.entryObjects2024 = [];
 global.golfData2025 = {};
 global.entryObjects2025 = [];
+global.lastUpdated2025 = null;
 
 // Use route handlers
 app.use("/data/2024", data2024Routes);
@@ -51,15 +51,31 @@ async function initializeApp() {
     await fetchGolfData2025();
     console.log("2025 Golf data loaded successfully");
 
-    // Setup interval for 2025 data only (active tournament)
-    const fiveMinutes = 5 * 60 * 1000;
-    setInterval(fetchGolfData2025, fiveMinutes);
-    console.log("Scheduled 2025 data updates every 5 minutes");
+    // Setup dynamic interval for 2025 data (active tournament)
+    scheduleNextUpdate();
   } catch (error) {
     console.error("Error initializing application:", error);
   }
 }
 
+// Function to schedule the next update based on tournament timing
+function scheduleNextUpdate() {
+  const interval = determinePollInterval();
+
+  console.log(`Next 2025 data update scheduled in ${interval / 60000} minutes`);
+
+  setTimeout(async () => {
+    try {
+      await fetchGolfData2025();
+      console.log("2025 Golf data updated successfully");
+    } catch (error) {
+      console.error("Error updating 2025 golf data:", error);
+    }
+
+    // Schedule the next update
+    scheduleNextUpdate();
+  }, interval);
+}
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
