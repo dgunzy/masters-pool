@@ -18,6 +18,7 @@ spec:
       containers:
         - name: masters-pool
           image: ghcr.io/dgunzy/masters-pool:latest 
+          imagePullPolicy: Always
           ports:
             - name: web
               containerPort: 3000 
