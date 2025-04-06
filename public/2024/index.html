@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2024 Masters Pool</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-green-800 text-white p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Masters Pool</h1>
+        <div class="space-x-4">
+          <a href="/" class="hover:underline">Home</a>
+          <a href="/2024/" class="font-bold underline">2024</a>
+          <a href="/2025/" class="hover:underline">2025</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="bg-white py-4 shadow-md mb-6">
+      <div class="container mx-auto text-center">
+        <h1 class="text-3xl font-bold text-green-800">
+          2024 Masters Tournament Results
+        </h1>
+        <p class="text-gray-600 mt-2">
+          Final standings from the 2024 Masters Tournament
+        </p>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="container mx-auto p-4">
+      <div id="entries" class="space-y-4"></div>
+    </div>
+
+    <!-- Last updated info -->
+    <div class="container mx-auto p-4 text-center text-gray-600 mt-4">
+      <p id="lastUpdated"></p>
+    </div>
+
+    <style>
+      @-moz-document url-prefix() {
+        /* Firefox-only CSS here */
+        #entries div {
+          color: black !important;
+          background-color: white !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+        /* Keep your red text as it is */
+        #entries div[style*="color: red"] {
+          color: red !important;
+        }
+      }
+    </style>
+
+    <script>
+      // Set the current date for the last updated field
+      document.getElementById(
+        "lastUpdated"
+      ).textContent = `Historical data from ${new Date().toLocaleDateString()}`;
+
+      fetch("/data/2024")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          const sortedData = data.sort(
+            (a, b) => b["Total Payout"] - a["Total Payout"]
+          );
+          const entriesContainer = document.getElementById("entries");
+
+          sortedData.forEach((entry, index) => {
+            const entryDiv = document.createElement("div");
+            entryDiv.className =
+              "mb-4 p-4 bg-white shadow rounded-lg mx-auto max-w-4xl";
+
+            let entryContent = `
+              <div class="flex flex-wrap justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-green-800">${entry.name}</h2>
+                <div class="text-right">
+                  <div class="font-bold text-lg">${(
+                    entry["Total Payout"] || 0
+                  ).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })}</div>
+                  <div class="text-gray-600">Position: ${index + 1}</div>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            `;
+
+            // Add group selections
+            Object.keys(entry)
+              .filter(
+                (key) => key.startsWith("Group") && !key.includes("Payout")
+              )
+              .forEach((groupKey) => {
+                const golfer = entry[groupKey];
+                const payoutKey = groupKey + " Payout";
+                const payout = entry[payoutKey]
+                  ? entry[payoutKey].toLocaleString("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    })
+                  : "$0";
+                entryContent += `<div class="p-2 border rounded ${
+                  entry[payoutKey] ? "bg-green-50" : ""
+                }">${groupKey}: <span class="font-medium">${golfer}</span><br/><span class="text-green-700">${payout}</span></div>`;
+              });
+
+            // Add special categories with highlighting
+            const muttPayout = entry["Mutt Payout"]
+              ? entry["Mutt Payout"].toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })
+              : "$0";
+
+            const oldMuttPayout = entry["Old Mutt Payout"]
+              ? entry["Old Mutt Payout"].toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })
+              : "$0";
+
+            const firstRoundLeaderPayout = entry["1RL Payout"]
+              ? entry["1RL Payout"].toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })
+              : "$0";
+
+            const wcPayout = entry["WC Payout"]
+              ? entry["WC Payout"].toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })
+              : "$0";
+
+            entryContent += `<div class="p-2 border rounded ${
+              entry["Mutt Payout"] ? "bg-red-50" : ""
+            }" style="color: ${
+              entry["Mutt Payout"] ? "red" : "inherit"
+            }">Mutt: <span class="font-medium">${
+              entry.Mutt
+            }</span><br/><span class="text-red-700">${muttPayout}</span></div>`;
+            entryContent += `<div class="p-2 border rounded ${
+              entry["Old Mutt Payout"] ? "bg-red-50" : ""
+            }" style="color: ${
+              entry["Old Mutt Payout"] ? "red" : "inherit"
+            }">Old Mutt: <span class="font-medium">${
+              entry["Old Mutt"]
+            }</span><br/><span class="text-red-700">${oldMuttPayout}</span></div>`;
+            entryContent += `<div class="p-2 border rounded ${
+              entry["WC Payout"] ? "bg-green-50" : ""
+            }">Wildcard: <span class="font-medium">${
+              entry.WC
+            }</span><br/><span class="text-green-700">${wcPayout}</span></div>`;
+            entryContent += `<div class="p-2 border rounded ${
+              entry["1RL Payout"] ? "bg-green-50" : ""
+            }">First Round Leader: <span class="font-medium">${
+              entry["1RL"]
+            }</span><br/><span class="text-green-700">${firstRoundLeaderPayout}</span></div>`;
+
+            entryContent += `</div>`;
+            entryDiv.innerHTML = entryContent;
+            entriesContainer.appendChild(entryDiv);
+          });
+        })
+        .catch((error) => {
+          console.error("Error fetching data:", error);
+          document.getElementById("entries").innerHTML = `
+            <div class="bg-red-100 p-4 rounded-lg text-center">
+              <p class="text-red-700">Error loading data. Please try again later.</p>
+            </div>
+          `;
+        });
+    </script>
+  </body>
+</html>
