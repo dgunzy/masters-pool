@@ -1,4 +1,20 @@
 #!/bin/bash
+
+# Load environment variables from .env file
+if [ -f .env ]; then
+  echo "Loading environment variables from .env file"
+  export $(grep -v '^#' .env | xargs)
+else
+  echo "Error: .env file not found"
+  exit 1
+fi
+
+# Verify that required environment variables are set
+if [ -z "$RAPIDAPI_KEY" ] || [ -z "$RAPIDAPI_HOST" ]; then
+  echo "Error: RAPIDAPI_KEY and RAPIDAPI_HOST must be set in .env file"
+  exit 1
+fi
+
 # Stop and remove existing container (ignore errors if it doesn't exist)
 docker stop masters-pool || true
 docker rm masters-pool || true
@@ -6,11 +22,12 @@ docker rm masters-pool || true
 # Build fresh image
 docker build -t masters-pool-app .
 
-# Run new container
+# Run new container with environment variables from .env
 docker run -d -p 3000:3000 \
-  -e RAPIDAPI_HOST=live-golf-data.p.rapidapi.com \
-  -e RAPIDAPI_KEY=b9ca41b503msh4952fb8a9e13e33p1f3297jsn33143a93e223 \
+  -e RAPIDAPI_HOST=$RAPIDAPI_HOST \
+  -e RAPIDAPI_KEY=$RAPIDAPI_KEY \
   -v $(pwd)/masters-pool-2.csv:/usr/src/app/masters-pool-2.csv \
+  -v $(pwd)/masters-pool-2025.csv:/usr/src/app/masters-pool-2025.csv \
   --name masters-pool \
   masters-pool-app
 
