@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: masters-pool-service
+  namespace: my-cluster
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7070
+      targetPort: web
+  selector:
+    app: masters-pool

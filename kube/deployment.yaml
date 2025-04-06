@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: masters-pool
+  namespace: my-cluster
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: masters-pool
+  template:
+    metadata:
+      labels:
+        app: masters-pool
+    spec:
+      containers:
+        - name: masters-pool
+          image: ghcr.io/dgunzy/masters-pool:latest 
+          ports:
+            - name: web
+              containerPort: 3000 
+          envFrom:
+          - secretRef:
+              name: masters-pool-env
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+                

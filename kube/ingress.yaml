@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: masters-pool
+  namespace: my-cluster
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - masters-pool.cabotcup.ca
+    secretName: masters-pool-tls
+  rules:
+    - host: masters-pool.cabotcup.ca
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: masters-pool-service  
+                port:
+                  number: 7070  
