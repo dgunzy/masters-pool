@@ -8,6 +8,11 @@ require("dotenv").config();
 const { fetchGolfData2024, fetchGolfData2025 } = require("./utils/apiHandler");
 const data2024Routes = require("./routes/data2024");
 const data2025Routes = require("./routes/data2025");
+const {
+  determinePollInterval,
+  hasTournamentStarted,
+} = require("./utils/timingUtils");
+const fs = require("fs").promises;
 
 // Serve static files from the public directory
 app.use(express.static("public"));

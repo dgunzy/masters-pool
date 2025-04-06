@@ -133,6 +133,34 @@
         }
       }
 
+      // Function to handle window resize
+      function handleResize() {
+        const isMobile = window.innerWidth < 768;
+
+        // Get all card contents
+        const cardContents = document.querySelectorAll('[id^="card-content-"]');
+
+        // Show all contents on desktop, keep collapsed state on mobile
+        cardContents.forEach((content) => {
+          if (!isMobile) {
+            content.classList.remove("hidden");
+            content.classList.add("block");
+          }
+        });
+      }
+
+      // Listen for window resize events
+      window.addEventListener("resize", handleResize);
+
+      // Function to calculate days until tournament
+      function getDaysUntilTournament(startDate) {
+        const now = new Date();
+        const tournamentStart = new Date(startDate);
+        const diffTime = tournamentStart - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+      }
+
       function fetchAndDisplayData() {
         // Update last refreshed time
         const now = new Date();
@@ -148,13 +176,45 @@
             return response.json();
           })
           .then((data) => {
+            const entriesContainer = document.getElementById("entries");
+            entriesContainer.innerHTML = "";
+
+            // Check if tournament has not started
+            if (data.status === "not_started") {
+              const daysUntil = getDaysUntilTournament(data.startDate);
+
+              // Create not-started message
+              const messageDiv = document.createElement("div");
+              messageDiv.className =
+                "p-8 bg-white shadow rounded-lg mx-auto max-w-2xl text-center";
+              messageDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <h2 class="text-2xl font-bold text-gray-800 mb-3">Coming Soon!</h2>
+                  <p class="text-gray-600 mb-6">${data.message}</p>
+                  <div class="bg-green-50 p-4 rounded-lg mb-6">
+                    <p class="text-lg font-semibold text-green-800">${daysUntil} days until tee time</p>
+                  </div>
+                  <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
+                </div>
+              `;
+              entriesContainer.appendChild(messageDiv);
+
+              // Hide the refresh button since it's not needed yet
+              document.getElementById("refreshButton").style.display = "none";
+
+              return; // Exit early, no need to process entries
+            }
+
+            // Show refresh button if tournament has started
+            document.getElementById("refreshButton").style.display = "block";
+
+            // Process normal tournament data
             const sortedData = data.sort(
               (a, b) => b["Total Payout"] - a["Total Payout"]
             );
-            const entriesContainer = document.getElementById("entries");
-
-            // Clear current entries
-            entriesContainer.innerHTML = "";
 
             sortedData.forEach((entry, index) => {
               const entryDiv = document.createElement("div");
