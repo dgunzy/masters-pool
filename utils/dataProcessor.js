@@ -1,5 +1,5 @@
 /**
- * Updates entry objects with calculated payouts
+ * Updates entry objects with calculated payouts and pool payouts
  * @param {Object} payouts - Object containing payouts by player name
  * @param {string} year - Year for the data (2024 or 2025)
  */
@@ -91,7 +91,26 @@ function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
  * @param {string} year - Year for the data (2024 or 2025)
  */
 function adjustValuesAndCalculateTotal(year) {
-  global[`entryObjects${year}`].forEach((entry) => {
+  // Sort entries by Total Payout before assigning pool payouts
+  if (year === "2025") {
+    global[`entryObjects${year}`].sort((a, b) => {
+      const totalA = calculateTotalPayout(a);
+      const totalB = calculateTotalPayout(b);
+      return totalB - totalA;
+    });
+  }
+
+  // Get pool payouts if it's 2025
+  let poolPayouts = {};
+  if (year === "2025") {
+    try {
+      poolPayouts = require(`../data/poolPayouts${year}`);
+    } catch (error) {
+      console.error(`Pool payouts for ${year} not found:`, error);
+    }
+  }
+
+  global[`entryObjects${year}`].forEach((entry, index) => {
     let totalPayout = 0;
 
     // Apply year-specific adjustments
@@ -134,11 +153,34 @@ function adjustValuesAndCalculateTotal(year) {
           totalPayout += entry[group] || 0;
         }
       });
+
+      // Assign pool payouts based on position (index + 1)
+      const position = index + 1;
+      if (poolPayouts[position]) {
+        entry["Pool Payout"] = poolPayouts[position];
+      } else {
+        entry["Pool Payout"] = 0;
+      }
     }
 
     // Attach the total payout to the entry
     entry["Total Payout"] = totalPayout;
   });
+}
+
+/**
+ * Helper function to calculate total payout for sorting
+ * @param {Object} entry - Entry object
+ * @returns {number} - Total payout value
+ */
+function calculateTotalPayout(entry) {
+  let total = 0;
+  Object.keys(entry).forEach((key) => {
+    if (key.endsWith("Payout") && key !== "Pool Payout") {
+      total += entry[key] || 0;
+    }
+  });
+  return total;
 }
 
 /**

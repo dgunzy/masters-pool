@@ -1,3 +1,5 @@
+// Update to utils/csvHandler.js
+
 const fs = require("fs").promises;
 const csv = require("csv-parse");
 const path = require("path");
@@ -61,6 +63,7 @@ function processRecords(records, year) {
     .map((header) => {
       const entryObject = { name: header };
       records.forEach((record) => {
+        // Add all fields from the record to the entry object
         entryObject[record.Entry] = record[header];
       });
       return entryObject;
