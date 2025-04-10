@@ -79,16 +79,19 @@ function enhancePlayerData(year) {
 }
 
 /**
- * Helper function to match golfer names and assign payouts
+ * Helper function to match golfer names and assign payouts with special case handling
  * @param {string} golferName - Lowercase golfer name to match
  * @param {string} group - Group key
  * @param {Object} entry - Entry object to update
  * @param {Object} payouts - Payouts by player name
  */
 function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
+  // Special case handling for known name conflicts
+  let payoutName = null;
+
   // For cases with identical last names (like Højgaard), require more specific matching
   if (golferName.includes("højgaard")) {
-    const payoutName = Object.keys(payouts).find((payoutKey) => {
+    payoutName = Object.keys(payouts).find((payoutKey) => {
       const payoutLower = payoutKey.toLowerCase();
       // Must match both first and last name for Højgaard twins
       if (payoutLower.includes("højgaard")) {
@@ -100,21 +103,50 @@ function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
       }
       return false;
     });
-
-    if (payoutName) {
-      entry[group + " Payout"] = payouts[payoutName];
-    }
-  } else {
-    // Regular matching for other golfers
-    const payoutName = Object.keys(payouts).find(
-      (payoutKey) =>
-        payoutKey.toLowerCase().includes(golferName.toLowerCase()) ||
-        golferName.includes(payoutKey.toLowerCase())
+  }
+  // Special case for Scott vs Scheffler
+  else if (golferName.toLowerCase() === "scott") {
+    // Only match with Adam Scott, not Scottie Scheffler
+    payoutName = Object.keys(payouts).find((key) =>
+      key.toLowerCase().includes("adam scott")
     );
+  } else if (golferName.toLowerCase() === "scheffler") {
+    // Only match with Scottie Scheffler, not Adam Scott
+    payoutName = Object.keys(payouts).find(
+      (key) =>
+        key.toLowerCase().includes("scottie scheffler") ||
+        key.toLowerCase().includes("scotty scheffler")
+    );
+  }
+  // Regular matching for other golfers with improved precision
+  else {
+    // Try a more precise matching approach that prevents partial matches
+    payoutName = Object.keys(payouts).find((payoutKey) => {
+      const payoutLower = payoutKey.toLowerCase();
+      const nameLower = golferName.toLowerCase();
 
-    if (payoutName) {
-      entry[group + " Payout"] = payouts[payoutName];
+      // Check for complete word matches to avoid partial string confusion
+      return (
+        payoutLower === nameLower ||
+        payoutLower.includes(" " + nameLower + " ") ||
+        payoutLower.startsWith(nameLower + " ") ||
+        payoutLower.endsWith(" " + nameLower)
+      );
+    });
+
+    // If no match found with precise matching, fall back to the older approach
+    if (!payoutName) {
+      payoutName = Object.keys(payouts).find(
+        (payoutKey) =>
+          payoutKey.toLowerCase().includes(golferName) ||
+          golferName.includes(payoutKey.toLowerCase())
+      );
     }
+  }
+
+  // Assign the payout if found
+  if (payoutName) {
+    entry[group + " Payout"] = payouts[payoutName];
   }
 }
 
