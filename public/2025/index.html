@@ -186,6 +186,24 @@
         border-radius: 2px;
         background-color: #dbeafe;
         color: #1e40af;
+        font-size: 0.7rem;
+      }
+
+      /* Different color bands for ownership percentages */
+      .ownership-high {
+        background-color: #bfdbfe;
+        color: #1e40af;
+        font-weight: bold;
+      }
+
+      .ownership-medium {
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+
+      .ownership-low {
+        background-color: #eff6ff;
+        color: #3b82f6;
       }
 
       .cut-player {
@@ -257,10 +275,20 @@
           }
         }
 
-        // Add ownership percentage
-        const ownershipDisplay = golferData.ownership
-          ? `<span class="ownership-badge">${golferData.ownership} owned</span>`
-          : "";
+        // Add ownership percentage with color bands
+        let ownershipDisplay = "";
+        if (golferData.ownership) {
+          const ownershipValue = parseFloat(golferData.ownership);
+          let ownershipClass = "ownership-low";
+
+          if (ownershipValue >= 30) {
+            ownershipClass = "ownership-high";
+          } else if (ownershipValue >= 15) {
+            ownershipClass = "ownership-medium";
+          }
+
+          ownershipDisplay = `<span class="ownership-badge ${ownershipClass}">${golferData.ownership} ownership</span>`;
+        }
 
         return `<div class="golfer-stats">
           <div>${scoreDisplay}</div>
