@@ -97,6 +97,8 @@ function fetchTournamentData(year) {
         try {
           const parsedData = JSON.parse(data);
 
+          // console.log(data);
+
           if (Array.isArray(parsedData.leaderboardRows)) {
             // Update the global golf data first so it's available for first round leader calculations
             global[`golfData${year}`] = parsedData;

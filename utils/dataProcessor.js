@@ -54,15 +54,35 @@ function updateEntryObjectsWithPayouts(payouts, year) {
  * @param {Object} payouts - Payouts by player name
  */
 function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
-  // Try to find a matching name in the payouts object
-  const payoutName = Object.keys(payouts).find(
-    (payoutKey) =>
-      payoutKey.toLowerCase().includes(golferName) ||
-      golferName.includes(payoutKey.toLowerCase())
-  );
+  // For cases with identical last names (like Højgaard), require more specific matching
+  if (golferName.includes("højgaard")) {
+    const payoutName = Object.keys(payouts).find((payoutKey) => {
+      const payoutLower = payoutKey.toLowerCase();
+      // Must match both first and last name for Højgaard twins
+      if (payoutLower.includes("højgaard")) {
+        const isNicolai =
+          golferName.includes("nicolai") && payoutLower.includes("nicolai");
+        const isRasmus =
+          golferName.includes("rasmus") && payoutLower.includes("rasmus");
+        return isNicolai || isRasmus;
+      }
+      return false;
+    });
 
-  if (payoutName) {
-    entry[group + " Payout"] = payouts[payoutName];
+    if (payoutName) {
+      entry[group + " Payout"] = payouts[payoutName];
+    }
+  } else {
+    // Regular matching for other golfers
+    const payoutName = Object.keys(payouts).find(
+      (payoutKey) =>
+        payoutKey.toLowerCase().includes(golferName.toLowerCase()) ||
+        golferName.includes(payoutKey.toLowerCase())
+    );
+
+    if (payoutName) {
+      entry[group + " Payout"] = payouts[payoutName];
+    }
   }
 }
 
