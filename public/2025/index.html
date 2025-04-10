@@ -59,9 +59,48 @@
       </div>
     </header>
 
-    <!-- Content -->
+    <!-- Content with Sidebar Layout -->
     <div class="container mx-auto p-4">
-      <div id="entries" class="space-y-4"></div>
+      <div class="flex flex-col lg:flex-row">
+        <!-- Main Content -->
+        <div class="w-full lg:w-3/4 lg:pr-4">
+          <div id="entries" class="space-y-4"></div>
+        </div>
+
+        <!-- Side Leaderboard (Desktop Only) -->
+        <div class="hidden lg:block lg:w-1/4 lg:pl-4">
+          <div class="bg-white rounded-lg shadow-md sticky top-4">
+            <div class="bg-green-800 text-white p-3 rounded-t-lg">
+              <h2 class="font-bold text-lg">Quick Leaderboard</h2>
+            </div>
+            <div id="side-leaderboard" class="p-2 max-h-[80vh] overflow-y-auto">
+              <div class="text-center p-4 text-gray-500">
+                <svg
+                  class="animate-spin h-6 w-6 mx-auto mb-2"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Loading standings...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Last updated info -->
@@ -120,6 +159,10 @@
           font-size: 12px;
           color: #888;
           transition: transform 0.3s ease;
+        }
+
+        .cursor-pointer.expanded::after {
+          transform: translateY(-50%) rotate(180deg);
         }
       }
 
@@ -210,6 +253,55 @@
         text-decoration: line-through;
         opacity: 0.8;
       }
+
+      /* Side leaderboard styles */
+      .leaderboard-item {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.85rem;
+      }
+
+      .leaderboard-item:last-child {
+        border-bottom: none;
+      }
+
+      .leaderboard-item:nth-child(even) {
+        background-color: #f9fafb;
+      }
+
+      .leaderboard-position {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        background-color: #d1fae5;
+        color: #065f46;
+        border-radius: 50%;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+
+      .leaderboard-position.top-3 {
+        background-color: #fef3c7;
+        color: #92400e;
+      }
+
+      .leaderboard-cash {
+        float: right;
+        font-weight: bold;
+        color: #047857;
+      }
+
+      .leaderboard-name {
+        font-weight: 600;
+      }
+
+      .leaderboard-golfers {
+        margin-top: 4px;
+        color: #6b7280;
+        font-size: 0.75rem;
+      }
     </style>
 
     <script>
@@ -219,9 +311,19 @@
         if (content.classList.contains("hidden")) {
           content.classList.remove("hidden");
           content.classList.add("block");
+          // Optionally change arrow direction if using arrow indicators
+          const header = content.previousElementSibling;
+          if (header && header.classList.contains("cursor-pointer")) {
+            header.classList.add("expanded");
+          }
         } else {
           content.classList.remove("block");
           content.classList.add("hidden");
+          // Reset arrow direction
+          const header = content.previousElementSibling;
+          if (header && header.classList.contains("cursor-pointer")) {
+            header.classList.remove("expanded");
+          }
         }
       }
 
@@ -232,17 +334,39 @@
         // Get all card contents
         const cardContents = document.querySelectorAll('[id^="card-content-"]');
 
+        // Get all headers
+        const cardHeaders = document.querySelectorAll(
+          '[class*="cursor-pointer"]'
+        );
+
         // Show all contents on desktop, keep collapsed state on mobile
         cardContents.forEach((content) => {
           if (!isMobile) {
+            // On desktop, always show content
             content.classList.remove("hidden");
             content.classList.add("block");
+          }
+        });
+
+        // Update header classes based on screen size
+        cardHeaders.forEach((header) => {
+          if (!isMobile) {
+            // On desktop, remove clickable styling
+            header.style.cursor = "default";
+          } else {
+            // On mobile, ensure it's clickable
+            header.style.cursor = "pointer";
           }
         });
       }
 
       // Listen for window resize events
       window.addEventListener("resize", handleResize);
+
+      // Call handleResize on page load to set initial states
+      document.addEventListener("DOMContentLoaded", function () {
+        handleResize();
+      });
 
       // Helper function to format golfer stats
       function formatGolferStats(golferData) {
@@ -352,13 +476,120 @@
         }
       }
 
+      // Function to generate content for the side leaderboard
+      function generateSideLeaderboardContent(sortedData) {
+        const sideLeaderboard = document.getElementById("side-leaderboard");
+        if (!sideLeaderboard) return;
+
+        sideLeaderboard.innerHTML = "";
+
+        // Pool payouts reference
+        const poolPayouts = {
+          1: 4335,
+          2: 2560,
+          3: 1870,
+          4: 1085,
+        };
+
+        sortedData.forEach((entry, index) => {
+          const position = index + 1;
+          const leaderboardItem = document.createElement("div");
+          leaderboardItem.className = "leaderboard-item";
+
+          // Format pool payout if in top 4
+          const poolPayout =
+            position <= 4
+              ? ` <span class="text-xs text-blue-600">(+$${poolPayouts[
+                  position
+                ].toLocaleString()})</span>`
+              : "";
+
+          // Create position badge with special styling for top 3
+          const positionClass = position <= 3 ? "top-3" : "";
+
+          // Format the total payout
+          const formattedPayout = (entry["Total Payout"] || 0).toLocaleString(
+            "en-US",
+            {
+              style: "currency",
+              currency: "USD",
+              maximumFractionDigits: 0,
+            }
+          );
+
+          // Get bonus pool indicator
+          const bonusPoolIndicator =
+            entry["In Bonus Pool"] === "Yes"
+              ? ' <span class="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">BP</span>'
+              : "";
+
+          // Get top cashing golfers (up to 3)
+          let topGolfers = "";
+          const golferPayouts = [];
+
+          // Collect all golfer payouts
+          Object.keys(entry).forEach((key) => {
+            if (
+              key.endsWith(" Payout") &&
+              key !== "Total Payout" &&
+              key !== "Pool Payout"
+            ) {
+              const groupKey = key.replace(" Payout", "");
+              const golferName = entry[groupKey];
+              const payout = entry[key] || 0;
+
+              if (payout > 0 && golferName) {
+                golferPayouts.push({
+                  name: golferName,
+                  payout: payout,
+                });
+              }
+            }
+          });
+
+          // Sort by payout amount, descending
+          golferPayouts.sort((a, b) => b.payout - a.payout);
+
+          // Get top 3 golfers
+          if (golferPayouts.length > 0) {
+            const topThreeGolfers = golferPayouts.slice(0, 3);
+            topGolfers = topThreeGolfers
+              .map((g) => {
+                const formattedGolferPayout = g.payout.toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 0,
+                });
+                return `${g.name} (${formattedGolferPayout})`;
+              })
+              .join(", ");
+
+            if (golferPayouts.length > 3) {
+              topGolfers += ", ...";
+            }
+          } else {
+            topGolfers = "No cashing golfers yet";
+          }
+
+          // Build the HTML
+          leaderboardItem.innerHTML = `
+            <span class="leaderboard-position ${positionClass}">${position}</span>
+            <span class="leaderboard-cash">${formattedPayout}</span>
+            <span class="leaderboard-name">${entry.name}${bonusPoolIndicator}${poolPayout}</span>
+            <div class="leaderboard-golfers">${topGolfers}</div>
+          `;
+
+          sideLeaderboard.appendChild(leaderboardItem);
+        });
+      }
+
       function fetchAndDisplayData() {
         // Update last refreshed time
         const poolPayouts = {
-          1: 4475,
-          2: 2640,
-          3: 1920,
-          4: 1115,
+          1: 4335,
+          2: 2560,
+          3: 1870,
+          4: 1085,
         };
         const now = new Date();
         document.getElementById(
@@ -412,16 +643,36 @@
               // Hide the refresh button since it's not needed yet
               document.getElementById("refreshButton").style.display = "none";
 
+              // Hide the side leaderboard as well since tournament hasn't started
+              const sideLeaderboard =
+                document.getElementById("side-leaderboard");
+              if (sideLeaderboard) {
+                sideLeaderboard.parentElement.style.display = "none";
+              }
+
               return; // Exit early, no need to process entries
             }
 
             // Show refresh button if tournament has started
             document.getElementById("refreshButton").style.display = "block";
 
+            // Show side leaderboard container if hidden
+            const sideLeaderboardContainer =
+              document.getElementById("side-leaderboard");
+            if (
+              sideLeaderboardContainer &&
+              sideLeaderboardContainer.parentElement
+            ) {
+              sideLeaderboardContainer.parentElement.style.display = "block";
+            }
+
             // Process normal tournament data
             const sortedData = data.data.sort(
               (a, b) => b["Total Payout"] - a["Total Payout"]
             );
+
+            // Generate the side leaderboard
+            generateSideLeaderboardContent(sortedData);
 
             // Update last updated display
             const lastUpdatedDate = data.lastUpdated
@@ -447,11 +698,14 @@
               // Create header (always visible)
               const header = document.createElement("div");
               header.className =
-                "p-4 cursor-pointer flex flex-wrap justify-between items-center";
+                "p-4 flex flex-wrap justify-between items-center";
 
-              // Only make it clickable on mobile
+              // Always make it clickable on mobile
               if (window.innerWidth < 768) {
-                header.onclick = () => toggleCardContent(cardId);
+                header.className += " cursor-pointer";
+                header.onclick = function () {
+                  toggleCardContent(cardId);
+                };
               }
 
               // Add bonus pool badge if applicable
@@ -491,7 +745,7 @@
               // Create content (collapsible)
               const content = document.createElement("div");
               content.id = cardId;
-              content.className = "p-4 pt-0 md:block hidden"; // Hidden on mobile by default
+              content.className = "p-4 pt-0 md:block hidden"; // Hidden on mobile by default, always visible on desktop
 
               let entryContent = `
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -536,11 +790,7 @@
                       : "";
 
                   entryContent += `<div class="p-2 border rounded ${
-                    entry[payoutKey]
-                      ? isSpecialGroup
-                        ? "bg-red-50"
-                        : "bg-green-50"
-                      : ""
+                    entry[payoutKey] ? (isSpecialGroup ? "bg-red-50" : "") : ""
                   }">${groupKey}: <span class="font-medium ${playerCutClass}">${golfer}</span>
                   ${golferStats}
                   <div class="${specialTextColor}">${payout}</div></div>`;
@@ -579,17 +829,9 @@
                   ? "cut-player"
                   : "";
 
-              entryContent += `<div class="p-2 border rounded ${
-                entry["WC Payout"] ? "bg-green-50" : ""
-              }">Wildcard: <span class="font-medium ${wcCutClass}">${
-                entry.WC
-              }</span>${wcStats}<div class="text-green-700">${wcPayout}</div></div>`;
+              entryContent += `<div class="p-2 border rounded">Wildcard: <span class="font-medium ${wcCutClass}">${entry.WC}</span>${wcStats}<div class="text-green-700">${wcPayout}</div></div>`;
 
-              entryContent += `<div class="p-2 border rounded ${
-                entry["1RL Payout"] ? "bg-green-50" : ""
-              }">First Round Leader: <span class="font-medium ${rlCutClass}">${
-                entry["1RL"]
-              }</span>${rlStats}<div class="text-green-700">${firstRoundLeaderPayout}</div></div>`;
+              entryContent += `<div class="p-2 border rounded">First Round Leader: <span class="font-medium ${rlCutClass}">${entry["1RL"]}</span>${rlStats}<div class="text-green-700">${firstRoundLeaderPayout}</div></div>`;
 
               entryContent += `</div>`;
               content.innerHTML = entryContent;
@@ -607,6 +849,16 @@
                 <p class="text-red-700">Error loading data. Please try again later.</p>
               </div>
             `;
+
+            // Also update the side leaderboard with an error message
+            const sideLeaderboard = document.getElementById("side-leaderboard");
+            if (sideLeaderboard) {
+              sideLeaderboard.innerHTML = `
+                <div class="p-4 text-center text-red-700">
+                  <p>Failed to load leaderboard data.</p>
+                </div>
+              `;
+            }
           });
       }
 
