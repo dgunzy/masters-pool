@@ -150,6 +150,48 @@
         font-weight: bold;
         margin-left: 8px;
       }
+
+      /* Golfer stats badge */
+      .golfer-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2px;
+        font-size: 0.75rem;
+      }
+
+      .golfer-score {
+        background-color: #e5e7eb;
+        padding: 1px 4px;
+        border-radius: 2px;
+        margin-right: 4px;
+      }
+
+      .golfer-score.under-par {
+        background-color: #d1fae5;
+        color: #065f46;
+      }
+
+      .golfer-score.over-par {
+        background-color: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .golfer-score.even-par {
+        background-color: #e5e7eb;
+        color: #374151;
+      }
+
+      .ownership-badge {
+        padding: 1px 4px;
+        border-radius: 2px;
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+
+      .cut-player {
+        text-decoration: line-through;
+        opacity: 0.8;
+      }
     </style>
 
     <script>
@@ -183,6 +225,48 @@
 
       // Listen for window resize events
       window.addEventListener("resize", handleResize);
+
+      // Helper function to format golfer stats
+      function formatGolferStats(golferData) {
+        if (!golferData) return "";
+
+        let scoreClass = "even-par";
+        if (golferData.score && golferData.score.startsWith("-")) {
+          scoreClass = "under-par";
+        } else if (golferData.score && golferData.score.startsWith("+")) {
+          scoreClass = "over-par";
+        }
+
+        let scoreDisplay = "";
+        if (golferData.score) {
+          // Handle cut players
+          if (golferData.status === "cut") {
+            scoreDisplay = `<span class="golfer-score">CUT</span>`;
+          } else {
+            scoreDisplay = `<span class="golfer-score ${scoreClass}">${golferData.score}</span>`;
+
+            // Add position if available
+            if (golferData.position) {
+              scoreDisplay += `<span class="golfer-position">${golferData.position}</span>`;
+            }
+
+            // Add thru hole information if available and not round complete
+            if (golferData.thru && golferData.thru !== "") {
+              scoreDisplay += ` <span class="golfer-thru">Thru ${golferData.thru}</span>`;
+            }
+          }
+        }
+
+        // Add ownership percentage
+        const ownershipDisplay = golferData.ownership
+          ? `<span class="ownership-badge">${golferData.ownership} owned</span>`
+          : "";
+
+        return `<div class="golfer-stats">
+          <div>${scoreDisplay}</div>
+          <div>${ownershipDisplay}</div>
+        </div>`;
+      }
 
       // Function to calculate time until tournament
       function getTimeUntilTournament(startDate) {
@@ -388,11 +472,15 @@
               // Add group selections
               Object.keys(entry)
                 .filter(
-                  (key) => key.startsWith("Group") && !key.includes("Payout")
+                  (key) =>
+                    key.startsWith("Group") &&
+                    !key.includes("Payout") &&
+                    !key.includes("_data")
                 )
                 .forEach((groupKey) => {
                   const golfer = entry[groupKey];
                   const payoutKey = groupKey + " Payout";
+                  const dataKey = groupKey + "_data";
                   const payout = entry[payoutKey]
                     ? entry[payoutKey].toLocaleString("en-US", {
                         style: "currency",
@@ -408,13 +496,26 @@
                     ? "text-red-700"
                     : "text-green-700";
 
+                  // Format golfer stats if available
+                  const golferStats = entry[dataKey]
+                    ? formatGolferStats(entry[dataKey])
+                    : "";
+
+                  // Add cut-player class if player is cut
+                  const playerCutClass =
+                    entry[dataKey] && entry[dataKey].status === "cut"
+                      ? "cut-player"
+                      : "";
+
                   entryContent += `<div class="p-2 border rounded ${
                     entry[payoutKey]
                       ? isSpecialGroup
                         ? "bg-red-50"
                         : "bg-green-50"
                       : ""
-                  }">${groupKey}: <span class="font-medium">${golfer}</span><br/><span class="${specialTextColor}">${payout}</span></div>`;
+                  }">${groupKey}: <span class="font-medium ${playerCutClass}">${golfer}</span>
+                  ${golferStats}
+                  <div class="${specialTextColor}">${payout}</div></div>`;
                 });
 
               // Add WC and 1RL
@@ -432,16 +533,35 @@
                   })
                 : "$0";
 
+              // Format golfer stats for WC and 1RL
+              const wcStats = entry["WC_data"]
+                ? formatGolferStats(entry["WC_data"])
+                : "";
+              const rlStats = entry["1RL_data"]
+                ? formatGolferStats(entry["1RL_data"])
+                : "";
+
+              // Add cut-player class if player is cut
+              const wcCutClass =
+                entry["WC_data"] && entry["WC_data"].status === "cut"
+                  ? "cut-player"
+                  : "";
+              const rlCutClass =
+                entry["1RL_data"] && entry["1RL_data"].status === "cut"
+                  ? "cut-player"
+                  : "";
+
               entryContent += `<div class="p-2 border rounded ${
                 entry["WC Payout"] ? "bg-green-50" : ""
-              }">Wildcard: <span class="font-medium">${
+              }">Wildcard: <span class="font-medium ${wcCutClass}">${
                 entry.WC
-              }</span><br/><span class="text-green-700">${wcPayout}</span></div>`;
+              }</span>${wcStats}<div class="text-green-700">${wcPayout}</div></div>`;
+
               entryContent += `<div class="p-2 border rounded ${
                 entry["1RL Payout"] ? "bg-green-50" : ""
-              }">First Round Leader: <span class="font-medium">${
+              }">First Round Leader: <span class="font-medium ${rlCutClass}">${
                 entry["1RL"]
-              }</span><br/><span class="text-green-700">${firstRoundLeaderPayout}</span></div>`;
+              }</span>${rlStats}<div class="text-green-700">${firstRoundLeaderPayout}</div></div>`;
 
               entryContent += `</div>`;
               content.innerHTML = entryContent;
