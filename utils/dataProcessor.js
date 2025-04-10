@@ -115,8 +115,13 @@ function adjustValuesAndCalculateTotal(year) {
       // 2025 rules with updated group structure
       Object.keys(entry).forEach((group) => {
         if (group === "1RL Payout") {
-          // 1RL payout is now handled by the updateFirstRoundLeaderPayouts function
-          // We don't modify it here, just add it to the total
+          entry[group] = 0;
+          if (entry["1RL"].toLowerCase().includes("firstroundleaderhere")) {
+            entry[group] = 500000;
+            // 1RL payout is now handled by the updateFirstRoundLeaderPayouts function
+            // We don't modify it here, just add it to the total
+            // I think we need to call something here
+          }
         } else if (group === "Group 9 (M) Payout") {
           // Mutt - Double the prize money for Group 9
           entry[group] = (entry[group] || 0) * 2;
@@ -232,59 +237,59 @@ function distributeTiePayout(tieBuffer, startIndex, payoutStructure, payouts) {
  * @param {string} year - Year of the tournament (should be "2025")
  * @returns {Array} - Array of first round leaders' names
  */
-function updateFirstRoundLeaderPayouts(year) {
-  // This function should only be used for 2025
-  if (year !== "2025") {
-    console.log("First round leader function is only for 2025 data");
-    return [];
-  }
+// function updateFirstRoundLeaderPayouts(year) {
+//   // This function should only be used for 2025
+//   if (year !== "2025") {
+//     console.log("First round leader function is only for 2025 data");
+//     return [];
+//   }
 
-  const leaderboardData = global[`golfData${year}`];
-  if (!leaderboardData || !leaderboardData.leaderboardRows) {
-    console.log(
-      "No leaderboard data available to determine first round leaders"
-    );
-    return [];
-  }
+//   const leaderboardData = global[`golfData${year}`];
+//   if (!leaderboardData || !leaderboardData.leaderboardRows) {
+//     console.log(
+//       "No leaderboard data available to determine first round leaders"
+//     );
+//     return [];
+//   }
 
-  // Get player scores for round 1
-  const playerRound1Scores = leaderboardData.leaderboardRows
-    .map((player) => {
-      // Make sure rounds array exists and has at least one entry
-      const round1Score =
-        player.rounds && player.rounds.length > 0
-          ? player.rounds[0].score
-          : null;
-      return {
-        name: `${player.firstName} ${player.lastName}`,
-        score: round1Score,
-      };
-    })
-    .filter((player) => player.score !== null);
+//   // Get player scores for round 1
+//   const playerRound1Scores = leaderboardData.leaderboardRows
+//     .map((player) => {
+//       // Make sure rounds array exists and has at least one entry
+//       const round1Score =
+//         player.rounds && player.rounds.length > 0
+//           ? player.rounds[0].score
+//           : null;
+//       return {
+//         name: `${player.firstName} ${player.lastName}`,
+//         score: round1Score,
+//       };
+//     })
+//     .filter((player) => player.score !== null);
 
-  // If no round 1 scores are available yet, return empty array
-  if (playerRound1Scores.length === 0) {
-    console.log("No round 1 scores available yet");
-    return [];
-  }
+//   // If no round 1 scores are available yet, return empty array
+//   if (playerRound1Scores.length === 0) {
+//     console.log("No round 1 scores available yet");
+//     return [];
+//   }
 
-  // Find the lowest score for round 1
-  const lowestScore = Math.min(
-    ...playerRound1Scores.map((player) => player.score)
-  );
+//   // Find the lowest score for round 1
+//   const lowestScore = Math.min(
+//     ...playerRound1Scores.map((player) => player.score)
+//   );
 
-  // Find all players with the lowest score
-  const firstRoundLeaders = playerRound1Scores
-    .filter((player) => player.score === lowestScore)
-    .map((player) => player.name);
+//   // Find all players with the lowest score
+//   const firstRoundLeaders = playerRound1Scores
+//     .filter((player) => player.score === lowestScore)
+//     .map((player) => player.name);
 
-  console.log(`First round leaders for ${year}:`, firstRoundLeaders);
+//   console.log(`First round leaders for ${year}:`, firstRoundLeaders);
 
-  // Update entries that correctly picked first round leaders
-  updateEntriesWithFirstRoundLeaderPayouts(firstRoundLeaders, year);
+//   // Update entries that correctly picked first round leaders
+//   updateEntriesWithFirstRoundLeaderPayouts(firstRoundLeaders, year);
 
-  return firstRoundLeaders;
-}
+//   return firstRoundLeaders;
+// }
 
 /**
  * Updates entries with first round leader payouts
@@ -328,5 +333,5 @@ module.exports = {
   updateEntryObjectsWithPayouts,
   calculatePayoutsByTotal,
   adjustValuesAndCalculateTotal,
-  updateFirstRoundLeaderPayouts,
+  // updateFirstRoundLeaderPayouts,
 };
