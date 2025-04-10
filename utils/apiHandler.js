@@ -39,6 +39,9 @@ async function fetchGolfData2024() {
 async function fetchGolfData2025() {
   try {
     await fetchGolfDataForYear("2025");
+    // Set the last updated timestamp after successful data fetch
+    global.lastUpdated2025 = new Date();
+    console.log(`2025 Golf data updated at ${global.lastUpdated2025}`);
   } catch (error) {
     console.error("Error fetching 2025 golf data:", error);
   }

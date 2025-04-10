@@ -21,6 +21,8 @@
         </div>
       </div>
     </nav>
+
+    <!-- Payout Warning Banner -->
     <div class="bg-yellow-100 border-b border-yellow-200">
       <div class="container mx-auto py-2 px-4 text-center text-yellow-800">
         <svg
@@ -265,9 +267,11 @@
                     <p class="text-xs text-gray-500">First tee time: 7:30 AM ET, April 10, 2025</p>
                   </div>
                   <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
-                  <p class="text-xs text-gray-500 mt-2">Data last updated: ${new Date(
+                  <p class="text-xs text-gray-500 mt-2">Data last updated: ${
                     data.lastUpdated
-                  ).toLocaleString()}</p>
+                      ? new Date(data.lastUpdated).toLocaleString()
+                      : "Recently"
+                  }</p>
                 </div>
               `;
               entriesContainer.appendChild(messageDiv);
@@ -290,10 +294,18 @@
             );
 
             // Update last updated display
-            const lastUpdatedDate = new Date(data.lastUpdated);
-            document.getElementById(
-              "lastUpdated"
-            ).textContent = `Data last updated: ${lastUpdatedDate.toLocaleString()}`;
+            const lastUpdatedDate = data.lastUpdated
+              ? new Date(data.lastUpdated)
+              : new Date();
+            // Check for invalid date (will be true for dates very close to epoch)
+            if (lastUpdatedDate.getFullYear() < 2020) {
+              document.getElementById("lastUpdated").textContent =
+                "Data last updated: Just now";
+            } else {
+              document.getElementById(
+                "lastUpdated"
+              ).textContent = `Data last updated: ${lastUpdatedDate.toLocaleString()}`;
+            }
 
             sortedData.forEach((entry, index) => {
               const entryDiv = document.createElement("div");
