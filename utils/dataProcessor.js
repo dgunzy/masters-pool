@@ -118,6 +118,24 @@ function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
         key.toLowerCase().includes("scotty scheffler")
     );
   }
+  // Special case for "Kim" - handle Tom Kim vs Michael Kim
+  else if (golferName.toLowerCase() === "kim") {
+    // Check if it's Group 8 - the group that contains Kim players
+    if (group === "Group 8") {
+      // Need to determine if the entry intended Tom Kim or Michael Kim
+      // Look through all payouts to find both Kim players
+      const tomKim = Object.keys(payouts).find((key) =>
+        key.toLowerCase().includes("tom kim")
+      );
+      const michaelKim = Object.keys(payouts).find((key) =>
+        key.toLowerCase().includes("michael kim")
+      );
+
+      // Default to Tom Kim if both are in the tournament
+      // (This follows the expected intention from the CSV data)
+      payoutName = tomKim || michaelKim;
+    }
+  }
   // Regular matching for other golfers with improved precision
   else {
     // Try a more precise matching approach that prevents partial matches
