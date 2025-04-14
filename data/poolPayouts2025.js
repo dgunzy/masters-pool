@@ -3,9 +3,8 @@
  * Values in USD
  */
 module.exports = {
-  1: 4335,
-  2: 2560,
-  3: 1870,
-  4: 1085,
-  // Add more positions as needed
+  1: 4475,
+  2: 2640,
+  3: 1920,
+  4: 1115,
 };
