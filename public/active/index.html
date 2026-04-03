@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Masters Pool – Current Year</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-green-800 text-white p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Masters Pool</h1>
+        <div class="space-x-4">
+          <a href="/" class="hover:underline">Home</a>
+          <a href="/2024/" class="hover:underline">2024</a>
+          <a href="/2025/" class="hover:underline">2025</a>
+          <a href="/active/" class="font-bold underline">2026</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="bg-white py-4 shadow-md mb-6">
+      <div class="container mx-auto text-center">
+        <h1 class="text-3xl font-bold text-green-800" id="page-title">
+          Masters Tournament – Live Pool
+        </h1>
+        <p class="text-gray-600 mt-2">Live standings — updates every 5 minutes</p>
+        <div id="special-rules-banner" class="mt-3 text-sm bg-green-50 p-2 rounded inline-block hidden">
+          <!-- Populated from server data -->
+        </div>
+      </div>
+    </header>
+
+    <!-- Content with Sidebar Layout -->
+    <div class="container mx-auto p-4">
+      <div class="flex flex-col lg:flex-row">
+        <!-- Main Content -->
+        <div class="w-full lg:w-3/4 lg:pr-4">
+          <div id="entries" class="space-y-4"></div>
+        </div>
+
+        <!-- Side Leaderboard (Desktop Only) -->
+        <div class="hidden lg:block lg:w-1/4 lg:pl-4">
+          <div class="bg-white rounded-lg shadow-md sticky top-4">
+            <div class="bg-green-800 text-white p-3 rounded-t-lg">
+              <h2 class="font-bold text-lg">Pool Leaderboard</h2>
+            </div>
+            <div id="side-leaderboard" class="p-2 max-h-[80vh] overflow-y-auto">
+              <div class="text-center p-4 text-gray-500">
+                <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading standings...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Last updated info -->
+    <div class="container mx-auto p-4 text-center text-gray-600 mt-4">
+      <p id="lastUpdated"></p>
+      <button
+        id="refreshButton"
+        class="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+      >
+        Refresh Data
+      </button>
+    </div>
+
+    <style>
+      @-moz-document url-prefix() {
+        #entries div { color: black !important; background-color: white !important; visibility: visible !important; opacity: 1 !important; }
+        #entries div[style*="color: red"] { color: red !important; }
+      }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .fade-in { animation: fadeIn 0.5s ease-in; }
+      .cursor-pointer { position: relative; }
+      @media (max-width: 768px) {
+        .cursor-pointer::after { content: "▼"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #888; transition: transform 0.3s ease; }
+        .cursor-pointer.expanded::after { transform: translateY(-50%) rotate(180deg); }
+      }
+      .block { animation: fadeIn 0.3s ease; }
+      .bonus-pool-badge { display: inline-block; padding: 2px 6px; background-color: #f0b429; color: #533f03; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-left: 8px; }
+      .golfer-stats { display: flex; justify-content: space-between; margin-top: 2px; font-size: 0.75rem; }
+      .golfer-score { background-color: #e5e7eb; padding: 1px 4px; border-radius: 2px; margin-right: 4px; }
+      .golfer-score.under-par { background-color: #d1fae5; color: #065f46; }
+      .golfer-score.over-par { background-color: #fee2e2; color: #b91c1c; }
+      .golfer-score.even-par { background-color: #e5e7eb; color: #374151; }
+      .ownership-badge { padding: 1px 4px; border-radius: 2px; background-color: #dbeafe; color: #1e40af; font-size: 0.7rem; }
+      .ownership-high { background-color: #bfdbfe; color: #1e40af; font-weight: bold; }
+      .ownership-medium { background-color: #dbeafe; color: #1e40af; }
+      .ownership-low { background-color: #eff6ff; color: #3b82f6; }
+      .cut-player { text-decoration: line-through; opacity: 0.8; }
+      .leaderboard-item { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; }
+      .leaderboard-item:last-child { border-bottom: none; }
+      .leaderboard-item:nth-child(even) { background-color: #f9fafb; }
+      .leaderboard-position { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background-color: #d1fae5; color: #065f46; border-radius: 50%; font-weight: bold; margin-right: 8px; }
+      .leaderboard-position.top-3 { background-color: #fef3c7; color: #92400e; }
+      .leaderboard-cash { float: right; font-weight: bold; color: #047857; }
+      .leaderboard-name { font-weight: 600; }
+      .leaderboard-golfers { margin-top: 4px; color: #6b7280; font-size: 0.75rem; }
+    </style>
+
+    <script>
+      function toggleCardContent(cardId) {
+        const content = document.getElementById(cardId);
+        if (content.classList.contains("hidden")) {
+          content.classList.remove("hidden");
+          content.classList.add("block");
+          const header = content.previousElementSibling;
+          if (header && header.classList.contains("cursor-pointer")) header.classList.add("expanded");
+        } else {
+          content.classList.remove("block");
+          content.classList.add("hidden");
+          const header = content.previousElementSibling;
+          if (header && header.classList.contains("cursor-pointer")) header.classList.remove("expanded");
+        }
+      }
+
+      function handleResize() {
+        const isMobile = window.innerWidth < 768;
+        document.querySelectorAll('[id^="card-content-"]').forEach((content) => {
+          if (!isMobile) { content.classList.remove("hidden"); content.classList.add("block"); }
+        });
+        document.querySelectorAll('[class*="cursor-pointer"]').forEach((header) => {
+          header.style.cursor = isMobile ? "pointer" : "default";
+        });
+      }
+      window.addEventListener("resize", handleResize);
+      document.addEventListener("DOMContentLoaded", handleResize);
+
+      function formatGolferStats(golferData) {
+        if (!golferData) return "";
+        let scoreClass = "even-par";
+        if (golferData.score && golferData.score.startsWith("-")) scoreClass = "under-par";
+        else if (golferData.score && golferData.score.startsWith("+")) scoreClass = "over-par";
+
+        let scoreDisplay = "";
+        if (golferData.score) {
+          if (golferData.status === "cut") {
+            scoreDisplay = `<span class="golfer-score">CUT</span>`;
+          } else {
+            scoreDisplay = `<span class="golfer-score ${scoreClass}">${golferData.score}</span>`;
+            if (golferData.position) scoreDisplay += `<span class="golfer-position">${golferData.position}</span>`;
+            if (golferData.thru && golferData.thru !== "") scoreDisplay += ` <span class="golfer-thru">Thru ${golferData.thru}</span>`;
+          }
+        }
+
+        let ownershipDisplay = "";
+        if (golferData.ownership) {
+          const val = parseFloat(golferData.ownership);
+          const cls = val >= 30 ? "ownership-high" : val >= 15 ? "ownership-medium" : "ownership-low";
+          ownershipDisplay = `<span class="ownership-badge ${cls}">${golferData.ownership} ownership</span>`;
+        }
+
+        return `<div class="golfer-stats"><div>${scoreDisplay}</div><div>${ownershipDisplay}</div></div>`;
+      }
+
+      function getTimeUntilTournament(startDate) {
+        const now = new Date();
+        const tournamentStart = new Date(`${startDate}T07:30:00-04:00`);
+        const diffTime = tournamentStart - now;
+        return {
+          days:    Math.floor(diffTime / (1000 * 60 * 60 * 24)),
+          hours:   Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((diffTime % (1000 * 60)) / 1000),
+          totalMs: diffTime,
+        };
+      }
+
+      function updateCountdown(startDate, elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const cd = getTimeUntilTournament(startDate);
+        el.innerHTML = `
+          <div class="grid grid-cols-4 gap-2 text-center">
+            <div class="bg-green-600 rounded p-2"><div class="text-2xl font-bold text-white">${cd.days}</div><div class="text-xs text-green-100">DAYS</div></div>
+            <div class="bg-green-600 rounded p-2"><div class="text-2xl font-bold text-white">${cd.hours}</div><div class="text-xs text-green-100">HOURS</div></div>
+            <div class="bg-green-600 rounded p-2"><div class="text-2xl font-bold text-white">${cd.minutes}</div><div class="text-xs text-green-100">MINS</div></div>
+            <div class="bg-green-600 rounded p-2"><div class="text-2xl font-bold text-white">${cd.seconds}</div><div class="text-xs text-green-100">SECS</div></div>
+          </div>`;
+        if (cd.totalMs > 0) setTimeout(() => updateCountdown(startDate, elementId), 1000);
+        else window.location.reload();
+      }
+
+      function generateSideLeaderboardContent(sortedData) {
+        const sideLeaderboard = document.getElementById("side-leaderboard");
+        if (!sideLeaderboard) return;
+        sideLeaderboard.innerHTML = "";
+
+        sortedData.forEach((entry, index) => {
+          const position = index + 1;
+          const item = document.createElement("div");
+          item.className = "leaderboard-item";
+
+          // Pool Payout is already calculated server-side
+          const poolPayout = entry["Pool Payout"] && entry["Pool Payout"] > 0
+            ? ` <span class="text-xs text-blue-600">(+$${entry["Pool Payout"].toLocaleString()})</span>`
+            : "";
+
+          const posClass = position <= 3 ? "top-3" : "";
+          const formattedPayout = (entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+          // Top 3 cashing golfers
+          const golferPayouts = [];
+          Object.keys(entry).forEach((key) => {
+            if (key.endsWith(" Payout") && key !== "Total Payout" && key !== "Pool Payout") {
+              const groupKey = key.replace(" Payout", "");
+              const golferName = entry[groupKey];
+              const payout = entry[key] || 0;
+              if (payout > 0 && golferName) golferPayouts.push({ name: golferName, payout });
+            }
+          });
+          golferPayouts.sort((a, b) => b.payout - a.payout);
+          let topGolfers = golferPayouts.slice(0, 3).map((g) =>
+            `${g.name} (${g.payout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })})`
+          ).join(", ");
+          if (golferPayouts.length > 3) topGolfers += ", ...";
+          if (!topGolfers) topGolfers = "No cashing golfers yet";
+
+          item.innerHTML = `
+            <span class="leaderboard-position ${posClass}">${position}</span>
+            <span class="leaderboard-cash">${formattedPayout}</span>
+            <span class="leaderboard-name">${entry.name}${poolPayout}</span>
+            <div class="leaderboard-golfers">${topGolfers}</div>`;
+          sideLeaderboard.appendChild(item);
+        });
+      }
+
+      function fetchAndDisplayData() {
+        document.getElementById("lastUpdated").textContent =
+          `Page refreshed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+
+        fetch("/data/active")
+          .then((r) => { if (!r.ok) throw new Error("Network response was not ok"); return r.json(); })
+          .then((data) => {
+            const container = document.getElementById("entries");
+            container.innerHTML = "";
+
+            if (data.status === "not_started") {
+              // Expand entries column to full width since sidebar is hidden
+              const entriesWrapper = document.getElementById("entries").parentElement;
+              entriesWrapper.className = "w-full";
+
+              const countdownId = "tournament-countdown";
+              const div = document.createElement("div");
+              div.className = "p-8 bg-white shadow rounded-lg mx-auto max-w-2xl text-center";
+              div.innerHTML = `
+                <div class="flex flex-col items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <h2 class="text-2xl font-bold text-gray-800 mb-3">Coming Soon!</h2>
+                  <p class="text-gray-600 mb-6">${data.message}</p>
+                  <div class="mb-6">
+                    <p class="text-lg font-semibold text-green-800 mb-3">Countdown to Tee Time</p>
+                    <div id="${countdownId}" class="mb-3">Loading countdown...</div>
+                    <p class="text-xs text-gray-500">First tee time: 7:30 AM ET, ${data.startDate}</p>
+                  </div>
+                  <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
+                  <p class="text-xs text-gray-500 mt-2">Data last updated: ${data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : "Recently"}</p>
+                </div>`;
+              container.appendChild(div);
+              updateCountdown(data.startDate, countdownId);
+              document.getElementById("refreshButton").style.display = "none";
+              const sideLB = document.getElementById("side-leaderboard");
+              if (sideLB) sideLB.parentElement.style.display = "none";
+              return;
+            }
+
+            document.getElementById("refreshButton").style.display = "block";
+            const sideLBContainer = document.getElementById("side-leaderboard");
+            if (sideLBContainer && sideLBContainer.parentElement) {
+              sideLBContainer.parentElement.style.display = "block";
+            }
+
+            const sortedData = data.data.sort((a, b) => b["Total Payout"] - a["Total Payout"]);
+            generateSideLeaderboardContent(sortedData);
+
+            const lastUpdatedDate = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
+            document.getElementById("lastUpdated").textContent =
+              lastUpdatedDate.getFullYear() < 2020
+                ? "Data last updated: Just now"
+                : `Data last updated: ${lastUpdatedDate.toLocaleString()}`;
+
+            sortedData.forEach((entry, index) => {
+              const entryDiv = document.createElement("div");
+              entryDiv.className = "mb-4 bg-white shadow rounded-lg mx-auto max-w-4xl fade-in";
+              const cardId = `card-content-${index}`;
+
+              const header = document.createElement("div");
+              header.className = "p-4 flex flex-wrap justify-between items-center";
+              if (window.innerWidth < 768) {
+                header.className += " cursor-pointer";
+                header.onclick = function () { toggleCardContent(cardId); };
+              }
+
+              const position = index + 1;
+              // Pool Payout is calculated server-side
+              const poolPayoutAmount = entry["Pool Payout"] || 0;
+              const poolPayoutHTML = poolPayoutAmount > 0
+                ? `<div class="text-blue-700 font-semibold">Main Pool Payout: ${poolPayoutAmount.toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>`
+                : "";
+
+              header.innerHTML = `
+                <h2 class="text-xl font-bold text-green-800">${entry.name}</h2>
+                <div class="text-right">
+                  <div class="font-bold text-lg">${(entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>
+                  <div class="text-gray-600">Position: ${position}</div>
+                  ${poolPayoutHTML}
+                </div>`;
+
+              const content = document.createElement("div");
+              content.id = cardId;
+              content.className = "p-4 pt-0 md:block hidden";
+
+              let entryContent = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">`;
+
+              Object.keys(entry)
+                .filter((key) => key.startsWith("Group") && !key.includes("Payout") && !key.includes("_data"))
+                .forEach((groupKey) => {
+                  const golfer    = entry[groupKey];
+                  const payout    = entry[groupKey + " Payout"]
+                    ? entry[groupKey + " Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" })
+                    : "$0";
+                  const isSpecial = groupKey.includes("(M)") || groupKey.includes("(OM)");
+                  const textColor = isSpecial ? "text-red-700" : "text-green-700";
+                  const golferStats = entry[groupKey + "_data"] ? formatGolferStats(entry[groupKey + "_data"]) : "";
+                  const cutClass    = entry[groupKey + "_data"] && entry[groupKey + "_data"].status === "cut" ? "cut-player" : "";
+
+                  entryContent += `
+                    <div class="p-2 border rounded ${entry[groupKey + " Payout"] && isSpecial ? "bg-red-50" : ""}">
+                      ${groupKey}: <span class="font-medium ${cutClass}">${golfer}</span>
+                      ${golferStats}
+                      <div class="${textColor}">${payout}</div>
+                    </div>`;
+                });
+
+              // WC
+              const wcPayout = entry["WC Payout"]
+                ? entry["WC Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
+              const wcStats  = entry["WC_data"] ? formatGolferStats(entry["WC_data"]) : "";
+              const wcCut    = entry["WC_data"] && entry["WC_data"].status === "cut" ? "cut-player" : "";
+              entryContent += `<div class="p-2 border rounded">Wildcard: <span class="font-medium ${wcCut}">${entry.WC}</span>${wcStats}<div class="text-green-700">${wcPayout}</div></div>`;
+
+              // 1RL
+              const frlPayout = entry["1RL Payout"]
+                ? entry["1RL Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
+              const rlStats   = entry["1RL_data"] ? formatGolferStats(entry["1RL_data"]) : "";
+              const rlCut     = entry["1RL_data"] && entry["1RL_data"].status === "cut" ? "cut-player" : "";
+              entryContent += `<div class="p-2 border rounded">First Round Leader: <span class="font-medium ${rlCut}">${entry["1RL"]}</span>${rlStats}<div class="text-green-700">${frlPayout}</div></div>`;
+
+              entryContent += `</div>`;
+              content.innerHTML = entryContent;
+              entryDiv.appendChild(header);
+              entryDiv.appendChild(content);
+              container.appendChild(entryDiv);
+            });
+          })
+          .catch((error) => {
+            console.error("Error fetching data:", error);
+            document.getElementById("entries").innerHTML = `
+              <div class="bg-red-100 p-4 rounded-lg text-center">
+                <p class="text-red-700">Error loading data. Please try again later.</p>
+              </div>`;
+            const sideLB = document.getElementById("side-leaderboard");
+            if (sideLB) sideLB.innerHTML = `<div class="p-4 text-center text-red-700"><p>Failed to load leaderboard data.</p></div>`;
+          });
+      }
+
+      fetchAndDisplayData();
+      setInterval(fetchAndDisplayData, 5 * 60 * 1000);
+      document.getElementById("refreshButton").addEventListener("click", fetchAndDisplayData);
+    </script>
+  </body>
+</html>

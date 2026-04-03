@@ -1,7 +1,10 @@
+const { adjustValuesAndCalculateTotal } = require("./dataProcessor");
+
 /**
- * Updates entries with first round leader payouts
- * @param {Array} firstRoundLeaders - Array of names of first round leaders
- * @param {string} year - Year of the tournament
+ * Updates entries with first round leader payouts.
+ *
+ * @param {Array}  firstRoundLeaders - Array of player name strings who led after round 1
+ * @param {string} year              - Active year string (e.g. "2026")
  */
 function updateEntriesWithFirstRoundLeaderPayouts(firstRoundLeaders, year) {
   if (!firstRoundLeaders || firstRoundLeaders.length === 0) {
@@ -9,37 +12,28 @@ function updateEntriesWithFirstRoundLeaderPayouts(firstRoundLeaders, year) {
     return;
   }
 
-  const firstRoundLeaderPayout = 500000; // $500,000 for correct 1RL pick
+  const frlPayout = parseInt(process.env.FIRST_ROUND_LEADER_PAYOUT || "500000");
 
   global[`entryObjects${year}`].forEach((entry) => {
-    // Get the 1RL pick for this entry
-    const firstRoundLeaderPick = entry["1RL"];
+    const pick = entry["1RL"];
+    if (!pick) return;
 
-    if (!firstRoundLeaderPick) return;
-
-    // Check if the entry's 1RL pick matches any of the first round leaders
     const hasCorrectPick = firstRoundLeaders.some(
       (leader) =>
-        leader.toLowerCase().includes(firstRoundLeaderPick.toLowerCase()) ||
-        firstRoundLeaderPick.toLowerCase().includes(leader.toLowerCase())
+        leader.toLowerCase().includes(pick.toLowerCase()) ||
+        pick.toLowerCase().includes(leader.toLowerCase())
     );
 
-    // Update the entry with the payout if they got it right
+    entry["1RL Payout"] = hasCorrectPick ? frlPayout : 0;
+
     if (hasCorrectPick) {
-      entry["1RL Payout"] = firstRoundLeaderPayout;
-      console.log(
-        `Entry ${entry.name} gets 1RL payout for picking ${firstRoundLeaderPick}`
-      );
-    } else {
-      entry["1RL Payout"] = 0;
+      console.log(`Entry ${entry.name} gets 1RL payout for picking ${pick}`);
     }
   });
 
-  // Recalculate total payouts
   adjustValuesAndCalculateTotal(year);
 }
 
 module.exports = {
-  updateFirstRoundLeaderPayouts,
   updateEntriesWithFirstRoundLeaderPayouts,
 };
