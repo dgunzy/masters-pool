@@ -1,83 +1,86 @@
-const express = require("express");
-const path = require("path");
-const app = express();
-const PORT = process.env.PORT || 3000;
 require("dotenv").config();
 
-// Import utility modules
-const { fetchGolfData2024, fetchGolfData2025 } = require("./utils/apiHandler");
-const data2024Routes = require("./routes/data2024");
-const data2025Routes = require("./routes/data2025");
-const fs = require("fs").promises;
-const {
-  determinePollInterval,
-  hasTournamentStarted,
-} = require("./utils/timingUtils");
-// Serve static files from the public directory
+const express = require("express");
+const path    = require("path");
+const app     = express();
+const PORT    = process.env.PORT || 3000;
+
+const { fetchGolfData2024, fetchGolfData2025, fetchGolfDataActive } = require("./utils/apiHandler");
+const { determinePollInterval } = require("./utils/timingUtils");
+
+const data2024Routes  = require("./routes/data2024");
+const data2025Routes  = require("./routes/data2025");
+const dataActiveRoutes = require("./routes/dataActive");
+
+// ---------------------------------------------------------------------------
+// Static files
+// ---------------------------------------------------------------------------
 app.use(express.static("public"));
 
-// Global data stores for both years
-global.golfData2024 = {};
+// ---------------------------------------------------------------------------
+// Global data stores
+// ---------------------------------------------------------------------------
+const activeYear = process.env.ACTIVE_YEAR || "2026";
+
+global.golfData2024    = {};
 global.entryObjects2024 = [];
-global.golfData2025 = {};
+global.golfData2025    = {};
 global.entryObjects2025 = [];
-global.lastUpdated2025 = null;
+global[`golfData${activeYear}`]     = {};
+global[`entryObjects${activeYear}`] = [];
+global.lastUpdatedActive = null;
 
-// Use route handlers
-app.use("/data/2024", data2024Routes);
-app.use("/data/2025", data2025Routes);
+// ---------------------------------------------------------------------------
+// Routes
+// ---------------------------------------------------------------------------
+app.use("/data/2024",   data2024Routes);
+app.use("/data/2025",   data2025Routes);
+app.use("/data/active", dataActiveRoutes);
 
-// Redirect root to index
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-/**
- * The application uses separate payout structures for each year:
- * - data/payoutStructure2024.js: Contains the 2024 Masters Tournament payout structure
- * - data/payoutStructure2025.js: Contains the 2025 Masters Tournament payout structure (currently a copy of 2024)
- *
- * To modify the payouts for 2025, edit the payoutStructure2025.js file.
- */
-
-// Initialize the application by loading initial data
+// ---------------------------------------------------------------------------
+// Initialisation
+// ---------------------------------------------------------------------------
 async function initializeApp() {
   try {
-    // Load 2024 data only once at startup (since it doesn't change)
+    // Historical years — load once at startup, never polled again
     await fetchGolfData2024();
-    console.log("2024 Golf data loaded successfully");
+    console.log("2024 data loaded");
 
-    // Load initial 2025 data
     await fetchGolfData2025();
-    console.log("2025 Golf data loaded successfully");
+    console.log("2025 data loaded");
 
-    // Setup dynamic interval for 2025 data (active tournament)
+    // Active year — load now then schedule dynamic polling
+    await fetchGolfDataActive();
+    console.log(`${activeYear} (active) data loaded`);
+
     scheduleNextUpdate();
   } catch (error) {
-    console.error("Error initializing application:", error);
+    console.error("Error during initialisation:", error);
   }
 }
 
-// Function to schedule the next update based on tournament timing
 function scheduleNextUpdate() {
   const interval = determinePollInterval();
-
-  console.log(`Next 2025 data update scheduled in ${interval / 60000} minutes`);
+  console.log(`Next active-year update in ${interval / 60000} min`);
 
   setTimeout(async () => {
     try {
-      await fetchGolfData2025();
-      console.log("2025 Golf data updated successfully");
+      await fetchGolfDataActive();
     } catch (error) {
-      console.error("Error updating 2025 golf data:", error);
+      console.error("Error updating active year data:", error);
     }
-
-    // Schedule the next update
     scheduleNextUpdate();
   }, interval);
 }
-// Start the server
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} | Active year: ${activeYear}`);
   initializeApp();
 });

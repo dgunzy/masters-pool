@@ -607,67 +607,8 @@
             const entriesContainer = document.getElementById("entries");
             entriesContainer.innerHTML = "";
 
-            // Check if tournament has not started
-            if (data.status === "not_started") {
-              const countdownId = "tournament-countdown";
-
-              // Create not-started message
-              const messageDiv = document.createElement("div");
-              messageDiv.className =
-                "p-8 bg-white shadow rounded-lg mx-auto max-w-2xl text-center";
-              messageDiv.innerHTML = `
-                <div class="flex flex-col items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <h2 class="text-2xl font-bold text-gray-800 mb-3">Coming Soon!</h2>
-                  <p class="text-gray-600 mb-6">${data.message}</p>
-                  <div class="mb-6">
-                    <p class="text-lg font-semibold text-green-800 mb-3">Countdown to Tee Time</p>
-                    <div id="${countdownId}" class="mb-3">Loading countdown...</div>
-                    <p class="text-xs text-gray-500">First tee time: 7:30 AM ET, April 10, 2025</p>
-                  </div>
-                  <p class="text-sm text-gray-500">Player selections and pool entries are ready. Check back when the tournament begins!</p>
-                  <p class="text-xs text-gray-500 mt-2">Data last updated: ${
-                    data.lastUpdated
-                      ? new Date(data.lastUpdated).toLocaleString()
-                      : "Recently"
-                  }</p>
-                </div>
-              `;
-              entriesContainer.appendChild(messageDiv);
-
-              // Initialize the countdown timer
-              updateCountdown(data.startDate, countdownId);
-
-              // Hide the refresh button since it's not needed yet
-              document.getElementById("refreshButton").style.display = "none";
-
-              // Hide the side leaderboard as well since tournament hasn't started
-              const sideLeaderboard =
-                document.getElementById("side-leaderboard");
-              if (sideLeaderboard) {
-                sideLeaderboard.parentElement.style.display = "none";
-              }
-
-              return; // Exit early, no need to process entries
-            }
-
-            // Show refresh button if tournament has started
-            document.getElementById("refreshButton").style.display = "block";
-
-            // Show side leaderboard container if hidden
-            const sideLeaderboardContainer =
-              document.getElementById("side-leaderboard");
-            if (
-              sideLeaderboardContainer &&
-              sideLeaderboardContainer.parentElement
-            ) {
-              sideLeaderboardContainer.parentElement.style.display = "block";
-            }
-
-            // Process normal tournament data
-            const sortedData = data.data.sort(
+            // Process tournament data (2025 is historical, always complete)
+            const sortedData = data.sort(
               (a, b) => b["Total Payout"] - a["Total Payout"]
             );
 

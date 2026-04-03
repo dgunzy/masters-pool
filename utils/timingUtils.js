@@ -1,105 +1,113 @@
 /**
- * Utility functions for tournament timing and scheduling
+ * Utility functions for tournament timing and scheduling.
+ * All values are driven by environment variables so they can be changed
+ * via a single PR to the gitops deployment manifest.
+ *
+ * Required env vars (with defaults):
+ *   TOURNAMENT_START_DATE  e.g. "2026-04-09"
+ *   TOURNAMENT_END_DATE    e.g. "2026-04-12"
+ *   TOURNAMENT_START_HOUR  e.g. "07:30"  (24h, Eastern)
+ *   TOURNAMENT_END_HOUR    e.g. "19:30"  (24h, Eastern)
+ *   TOURNAMENT_TIMEZONE    e.g. "America/New_York"
+ *   POLL_INTERVAL_ACTIVE        ms, default 300000   (5 min)
+ *   POLL_INTERVAL_OFF_HOURS     ms, default 3600000  (1 hr)
+ *   POLL_INTERVAL_OFF_SEASON    ms, default 36000000 (10 hr)
  */
 
+function getTournamentConfig() {
+  const startDate = process.env.TOURNAMENT_START_DATE || "2026-04-09";
+  const endDate   = process.env.TOURNAMENT_END_DATE   || "2026-04-12";
+  const tz        = process.env.TOURNAMENT_TIMEZONE   || "America/New_York";
+
+  const [startHour, startMin] = (process.env.TOURNAMENT_START_HOUR || "07:30")
+    .split(":").map(Number);
+  const [endHour, endMin]     = (process.env.TOURNAMENT_END_HOUR   || "19:30")
+    .split(":").map(Number);
+
+  return { startDate, endDate, tz, startHour, startMin, endHour, endMin };
+}
+
 /**
- * Check if the current time is during tournament hours (7:30 AM - 7:30 PM Eastern Time)
- * @returns {boolean} true if current time is during tournament hours
+ * Returns the current date/time expressed in the tournament timezone.
+ */
+function nowInTz(tz) {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+}
+
+/**
+ * Check if the current time is within tournament playing hours.
  */
 function isDuringTournamentHours() {
-  const now = new Date();
+  const { tz, startHour, startMin, endHour, endMin } = getTournamentConfig();
+  const local = nowInTz(tz);
+  const h = local.getHours();
+  const m = local.getMinutes();
 
-  // Convert to Eastern Time
-  const easternTime = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-  const hours = easternTime.getHours();
-  const minutes = easternTime.getMinutes();
-
-  // Tournament hours: 7:30 AM - 7:30 PM Eastern Time
-  const tournamentStartHour = 7;
-  const tournamentStartMinute = 30;
-  const tournamentEndHour = 19;
-  const tournamentEndMinute = 30;
-
-  // Check if current time is during tournament hours
-  if (hours > tournamentStartHour && hours < tournamentEndHour) {
-    return true;
-  } else if (
-    hours === tournamentStartHour &&
-    minutes >= tournamentStartMinute
-  ) {
-    return true;
-  } else if (hours === tournamentEndHour && minutes <= tournamentEndMinute) {
-    return true;
-  }
-
-  return false;
+  const afterStart  = h > startHour || (h === startHour && m >= startMin);
+  const beforeEnd   = h < endHour   || (h === endHour   && m <= endMin);
+  return afterStart && beforeEnd;
 }
 
 /**
- * Check if the current date is during the 2025 Masters Tournament (April 10-13, 2025)
- * @returns {boolean} true if current date is during tournament dates
+ * Check if today falls within the configured tournament dates.
  */
 function isDuringTournamentDates() {
-  const now = new Date();
+  const { tz, startDate, endDate } = getTournamentConfig();
+  const local = nowInTz(tz);
 
-  // Convert to Eastern Time
-  const easternTime = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/New_York" })
+  // Build midnight-local boundaries from the date strings
+  const start = new Date(`${startDate}T00:00:00`);
+  const end   = new Date(`${endDate}T23:59:59`);
+
+  // Strip time from local for a pure date comparison
+  const today = new Date(
+    local.getFullYear(),
+    local.getMonth(),
+    local.getDate()
   );
-  const year = easternTime.getFullYear();
-  const month = easternTime.getMonth(); // 0-indexed, so April is 3
-  const day = easternTime.getDate();
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDay   = new Date(end.getFullYear(),   end.getMonth(),   end.getDate());
 
-  // Tournament dates: April 10-13, 2025
-  if (year === 2025 && month === 3) {
-    return day >= 10 && day <= 13;
-  }
-
-  return false;
+  return today >= startDay && today <= endDay;
 }
 
 /**
- * Determine the appropriate poll interval based on tournament timing
- * @returns {number} poll interval in milliseconds (5 minutes during tournament, 1 hour otherwise)
+ * Determine the appropriate poll interval based on tournament timing.
  */
 function determinePollInterval() {
-  const fiveMinutes = 5 * 60 * 1000;
-  const oneHour = 60 * 60 * 1000;
-  const tenHours = 60 * 60 * 1000 * 10;
+  const active    = parseInt(process.env.POLL_INTERVAL_ACTIVE     || "300000");
+  const offHours  = parseInt(process.env.POLL_INTERVAL_OFF_HOURS  || "3600000");
+  const offSeason = parseInt(process.env.POLL_INTERVAL_OFF_SEASON || "36000000");
 
-  // If it's during tournament dates and hours, poll every 5 minutes
   if (isDuringTournamentDates() && isDuringTournamentHours()) {
-    console.log("Tournament in progress - polling every 5 minutes");
-    return fiveMinutes;
+    console.log("Tournament in progress — polling every", active / 60000, "min");
+    return active;
   }
 
-  // If it's during tournament dates but outside active hours, poll every hour
   if (isDuringTournamentDates()) {
-    console.log("Tournament day but outside active hours - polling every hour");
-    return oneHour;
+    console.log("Tournament day but outside active hours — polling every", offHours / 3600000, "hr");
+    return offHours;
   }
 
-  // Otherwise (not tournament dates), poll every 10 hours
-  console.log("Tournament not in progress - polling every 10 hours");
-  return tenHours;
+  console.log("Tournament not in progress — polling every", offSeason / 3600000, "hr");
+  return offSeason;
 }
 
 /**
- * Check if the 2025 tournament has started yet
- * @returns {boolean} true if tournament has started
+ * Check whether the tournament start date/time has passed.
  */
 function hasTournamentStarted() {
-  const now = new Date();
-
-  // Tournament start: April 10, 2025
-  const tournamentStart = new Date("2025-04-10T00:00:00-04:00");
-
-  return now >= tournamentStart;
+  const { startDate, tz, startHour, startMin } = getTournamentConfig();
+  // Treat the start as the configured start hour on start date in the tournament TZ
+  const tzOffset = tz === "America/New_York" ? "-04:00" : "-05:00"; // rough DST handling
+  const tournamentStart = new Date(
+    `${startDate}T${String(startHour).padStart(2, "0")}:${String(startMin).padStart(2, "0")}:00${tzOffset}`
+  );
+  return new Date() >= tournamentStart;
 }
 
 module.exports = {
+  getTournamentConfig,
   isDuringTournamentHours,
   isDuringTournamentDates,
   determinePollInterval,

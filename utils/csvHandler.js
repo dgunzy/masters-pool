@@ -1,79 +1,95 @@
-// Update to utils/csvHandler.js
-
-const fs = require("fs").promises;
+const fs  = require("fs").promises;
 const csv = require("csv-parse");
 const path = require("path");
 
 /**
- * Reads CSV file content
- * @param {string} year - Year of the Masters tournament (2024 or 2025)
- * @returns {Promise<string>} - CSV content as string
+ * Reads a CSV file from an absolute path.
+ * Used for the active year, whose CSV is mounted from a ConfigMap volume.
+ * @param {string} filePath - Absolute path to CSV file
  */
-async function fetchCsvContent(year) {
+async function fetchCsvContentFromPath(filePath) {
   try {
-    const csvFilePath = path.join(
-      __dirname,
-      "..",
-      "data",
-      `masters-pool-${year}.csv`
-    );
-    const csvContent = await fs.readFile(csvFilePath, "utf-8");
-    return csvContent;
+    return await fs.readFile(filePath, "utf-8");
   } catch (error) {
-    console.error(`Error fetching CSV content for ${year}:`, error);
+    console.error(`Error reading CSV from ${filePath}:`, error);
     throw error;
   }
 }
 
 /**
- * Parses CSV content into structured data
- * @param {string} csvContent - CSV content as string
- * @returns {Promise<Array>} - Parsed records
+ * Reads a CSV file bundled inside the image (historical years).
+ * @param {string} year - e.g. "2024" or "2025"
+ */
+async function fetchCsvContent(year) {
+  const csvFilePath = path.join(__dirname, "..", "data", `masters-pool-${year}.csv`);
+  return fetchCsvContentFromPath(csvFilePath);
+}
+
+/**
+ * Strips empty leading rows from CSV content before parsing.
+ * Google Forms exports often include blank rows above the header.
+ * A row is considered empty if it contains only commas and whitespace.
+ */
+function stripEmptyLeadingRows(content) {
+  const lines = content.split("\n");
+  const firstNonEmpty = lines.findIndex(
+    (line) => line.replace(/,/g, "").trim().length > 0
+  );
+  return firstNonEmpty > 0 ? lines.slice(firstNonEmpty).join("\n") : content;
+}
+
+/**
+ * Parses CSV content into an array of record objects.
+ * @param {string} csvContent
+ * @returns {Promise<Array>}
  */
 function parseCsvContent(csvContent) {
   return new Promise((resolve, reject) => {
     csv.parse(
-      csvContent,
-      {
-        columns: true,
-        skip_empty_lines: true,
-      },
+      stripEmptyLeadingRows(csvContent),
+      { columns: true, skip_empty_lines: true },
       (err, records) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(records);
-        }
+        if (err) reject(err);
+        else resolve(records);
       }
     );
   });
 }
 
 /**
- * Processes CSV records into entry objects
- * @param {Array} records - CSV parsed records
- * @param {string} year - Year of the Masters tournament
- * @returns {Array} - Entry objects
+ * Converts parsed CSV records into the entry-object format used by the app.
+ * The CSV is column-per-participant, row-per-group-slot.
+ *
+ * Handles real-world Google Forms exports where:
+ *   - The first column header may be empty (not "Entry")
+ *   - Participant columns may have trailing empty headers
+ * @param {Array} records
+ * @returns {Array}
  */
-function processRecords(records, year) {
-  const headers = records.length > 0 ? Object.keys(records[0]) : [];
+function processRecords(records) {
+  if (!records.length) return [];
 
-  const entryObjects = headers
-    .filter((header) => header !== "Entry")
+  const keys = Object.keys(records[0]);
+  const labelKey = keys[0]; // First column is always the group-label column
+
+  return keys
+    .slice(1) // Skip the label column
+    .filter((header) => header.trim() !== "") // Drop empty trailing columns
     .map((header) => {
       const entryObject = { name: header };
       records.forEach((record) => {
-        // Add all fields from the record to the entry object
-        entryObject[record.Entry] = record[header];
+        const groupLabel = (record[labelKey] || "").trim();
+        if (groupLabel) {
+          entryObject[groupLabel] = record[header];
+        }
       });
       return entryObject;
     });
-
-  return entryObjects;
 }
 
 module.exports = {
   fetchCsvContent,
+  fetchCsvContentFromPath,
   parseCsvContent,
   processRecords,
 };
