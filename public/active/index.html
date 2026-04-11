@@ -110,6 +110,14 @@
     </style>
 
     <script>
+      // ---------------------------------------------------------------------------
+      // Helper: display total = tournament earnings + pool position payout
+      // Server keeps them separate so the sort is stable.
+      // ---------------------------------------------------------------------------
+      function displayTotal(entry) {
+        return (entry["Total Payout"] || 0) + (entry["Pool Payout"] || 0);
+      }
+
       function toggleCardContent(cardId) {
         const content = document.getElementById(cardId);
         if (content.classList.contains("hidden")) {
@@ -202,15 +210,18 @@
           const item = document.createElement("div");
           item.className = "leaderboard-item";
 
-          // Pool Payout is already calculated server-side
           const poolPayout = entry["Pool Payout"] && entry["Pool Payout"] > 0
             ? ` <span class="text-xs text-blue-600">(+$${entry["Pool Payout"].toLocaleString()})</span>`
             : "";
 
           const posClass = position <= 3 ? "top-3" : "";
-          const formattedPayout = (entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-          // Top 3 cashing golfers
+          // Display total = tournament earnings + pool payout
+          const formattedPayout = displayTotal(entry).toLocaleString("en-US", {
+            style: "currency", currency: "USD", maximumFractionDigits: 0,
+          });
+
+          // Top 3 cashing golfers (from tournament earnings only)
           const golferPayouts = [];
           Object.keys(entry).forEach((key) => {
             if (key.endsWith(" Payout") && key !== "Total Payout" && key !== "Pool Payout") {
@@ -251,7 +262,6 @@
             container.innerHTML = "";
 
             if (data.status === "not_started") {
-              // Expand entries column to full width since sidebar is hidden
               const entriesWrapper = document.getElementById("entries").parentElement;
               entriesWrapper.className = "w-full";
 
@@ -287,9 +297,8 @@
               sideLBContainer.parentElement.style.display = "block";
             }
 
-            const sortedData = data.data.sort((a, b) => 
-            (b["Total Payout"] - (b["Pool Payout"]||0)) - (a["Total Payout"] - (a["Pool Payout"]||0))
-            );
+            // Sort by tournament earnings only (Total Payout excludes Pool Payout server-side)
+            const sortedData = data.data.sort((a, b) => b["Total Payout"] - a["Total Payout"]);
             generateSideLeaderboardContent(sortedData);
 
             const lastUpdatedDate = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
@@ -311,7 +320,6 @@
               }
 
               const position = index + 1;
-              // Pool Payout is calculated server-side
               const poolPayoutAmount = entry["Pool Payout"] || 0;
               const poolPayoutHTML = poolPayoutAmount > 0
                 ? `<div class="text-blue-700 font-semibold">Main Pool Payout: ${poolPayoutAmount.toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>`
@@ -322,10 +330,11 @@
                 ? `<span class="inline-block ml-2 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">OVERS</span>`
                 : "";
 
+              // Display total = tournament earnings + pool payout
               header.innerHTML = `
                 <h2 class="text-xl font-bold text-green-800">${entry.name}${oversBadge}</h2>
                 <div class="text-right">
-                  <div class="font-bold text-lg">${(entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>
+                  <div class="font-bold text-lg">${displayTotal(entry).toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>
                   <div class="text-gray-600">Position: ${position}</div>
                   ${poolPayoutHTML}
                 </div>`;
@@ -357,15 +366,13 @@
                 });
 
               // WC
-              const wcPayout = entry["WC Payout"]
-                ? entry["WC Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
-              const wcStats  = entry["WC_data"] ? formatGolferStats(entry["WC_data"]) : "";
-              const wcCut    = entry["WC_data"] && entry["WC_data"].status === "cut" ? "cut-player" : "";
+              const wcPayout  = entry["WC Payout"] ? entry["WC Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
+              const wcStats   = entry["WC_data"] ? formatGolferStats(entry["WC_data"]) : "";
+              const wcCut     = entry["WC_data"] && entry["WC_data"].status === "cut" ? "cut-player" : "";
               entryContent += `<div class="p-2 border rounded">Wildcard: <span class="font-medium ${wcCut}">${entry.WC}</span>${wcStats}<div class="text-green-700">${wcPayout}</div></div>`;
 
               // 1RL
-              const frlPayout = entry["1RL Payout"]
-                ? entry["1RL Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
+              const frlPayout = entry["1RL Payout"] ? entry["1RL Payout"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "$0";
               const rlStats   = entry["1RL_data"] ? formatGolferStats(entry["1RL_data"]) : "";
               const rlCut     = entry["1RL_data"] && entry["1RL_data"].status === "cut" ? "cut-player" : "";
               entryContent += `<div class="p-2 border rounded">First Round Leader: <span class="font-medium ${rlCut}">${entry["1RL"]}</span>${rlStats}<div class="text-green-700">${frlPayout}</div></div>`;
