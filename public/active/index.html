@@ -287,7 +287,9 @@
               sideLBContainer.parentElement.style.display = "block";
             }
 
-            const sortedData = data.data.sort((a, b) => b["Total Payout"] - a["Total Payout"]);
+            const sortedData = data.data.sort((a, b) => 
+            (b["Total Payout"] - (b["Pool Payout"]||0)) - (a["Total Payout"] - (a["Pool Payout"]||0))
+            );
             generateSideLeaderboardContent(sortedData);
 
             const lastUpdatedDate = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
