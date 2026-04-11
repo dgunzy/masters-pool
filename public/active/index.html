@@ -208,7 +208,7 @@
             : "";
 
           const posClass = position <= 3 ? "top-3" : "";
-          const formattedPayout = (entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+          const formattedPayout = ((entry["Total Payout"] || 0) + (entry["Pool Payout"] || 0)).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
           // Top 3 cashing golfers
           const golferPayouts = [];
@@ -287,9 +287,7 @@
               sideLBContainer.parentElement.style.display = "block";
             }
 
-            const sortedData = data.data.sort((a, b) => 
-            (b["Total Payout"] - (b["Pool Payout"]||0)) - (a["Total Payout"] - (a["Pool Payout"]||0))
-            );
+            const sortedData = data.data.sort((a, b) => b["Total Payout"] - a["Total Payout"]);
             generateSideLeaderboardContent(sortedData);
 
             const lastUpdatedDate = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
@@ -325,7 +323,7 @@
               header.innerHTML = `
                 <h2 class="text-xl font-bold text-green-800">${entry.name}${oversBadge}</h2>
                 <div class="text-right">
-                  <div class="font-bold text-lg">${(entry["Total Payout"] || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>
+                  <div class="font-bold text-lg">${((entry["Total Payout"] || 0) + (entry["Pool Payout"] || 0)).toLocaleString("en-US", { style: "currency", currency: "USD" })}</div>
                   <div class="text-gray-600">Position: ${position}</div>
                   ${poolPayoutHTML}
                 </div>`;
