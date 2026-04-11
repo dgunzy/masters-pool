@@ -165,16 +165,66 @@ function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
 /**
  * Applies year-specific multiplier rules and calculates each entry's total.
  * Historical years (2024, 2025) use their original hardcoded rules.
- * The active year uses env-var-driven config.
+ * The active year uses env-var-driven config with a two-pass approach:
+ *   Pass 1 — compute Total Payout (tournament earnings only, no Pool Payout)
+ *   Pass 2 — sort by Total Payout, then assign Pool Payout by position
+ * This keeps Total Payout and Pool Payout cleanly separated so the server sort
+ * and the frontend sort are always in sync.
  */
 function adjustValuesAndCalculateTotal(year) {
   const activeYear = process.env.ACTIVE_YEAR || "2026";
 
-  // Sort by total before assigning pool-position payouts
-  if (year === activeYear || year === "2025") {
-    global[`entryObjects${year}`].sort((a, b) => {
-      return calculateRawTotal(b) - calculateRawTotal(a);
+  if (year === activeYear) {
+    // ── Active year — two-pass pool payout assignment ────────────────────
+    const { mutGroup, oldMutGroup, mutMult, oldMutMult, poolPayouts, frlWinner, frlPayout } =
+      getActiveConfig();
+
+    // Pass 1: apply multipliers and compute Total Payout (tournament earnings only)
+    global[`entryObjects${year}`].forEach((entry) => {
+      let totalPayout = 0;
+      Object.keys(entry).forEach((group) => {
+        if (group === "1RL Payout") {
+          entry[group] =
+            frlWinner && entry["1RL"] && entry["1RL"].toLowerCase().includes(frlWinner)
+              ? frlPayout
+              : 0;
+        } else if (group.endsWith(" Payout") && group !== "1RL Payout" && group !== "Pool Payout") {
+          // Detect Mutt / Old Mutt groups by group number OR by legacy/alternate names
+          const groupNumMatch = group.match(/Group\s+(\d+)/i);
+          if (groupNumMatch) {
+            const groupNum = parseInt(groupNumMatch[1]);
+            if (groupNum === mutGroup) {
+              entry[group] = (entry[group] || 0) * mutMult;
+            } else if (groupNum === oldMutGroup) {
+              entry[group] = (entry[group] || 0) * oldMutMult;
+            }
+          } else if (group === "Mutt Payout") {
+            entry[group] = (entry[group] || 0) * mutMult;
+          } else if (group === "Champion Mutt Payout" || group === "Old Mutt Payout") {
+            entry[group] = (entry[group] || 0) * oldMutMult;
+          }
+        }
+        // Exclude Pool Payout so Total Payout = tournament earnings only
+        if (group.endsWith("Payout") && group !== "Pool Payout") {
+          totalPayout += entry[group] || 0;
+        }
+      });
+      entry["Total Payout"] = totalPayout;
+      entry["Pool Payout"] = 0; // cleared until pass 2
     });
+
+    // Pass 2: sort by tournament earnings, then assign pool position payouts
+    global[`entryObjects${year}`].sort((a, b) => b["Total Payout"] - a["Total Payout"]);
+    global[`entryObjects${year}`].forEach((entry, index) => {
+      entry["Pool Payout"] = poolPayouts[index + 1] || 0;
+    });
+
+    return;
+  }
+
+  // ── Historical years ─────────────────────────────────────────────────────────
+  if (year === "2025") {
+    global[`entryObjects${year}`].sort((a, b) => calculateRawTotal(b) - calculateRawTotal(a));
   }
 
   global[`entryObjects${year}`].forEach((entry, index) => {
@@ -210,38 +260,6 @@ function adjustValuesAndCalculateTotal(year) {
 
       const poolPayouts2025 = require("../data/poolPayouts2025");
       entry["Pool Payout"] = poolPayouts2025[index + 1] || 0;
-
-    } else {
-      // ── Active year — all rules from env vars ────────────────────────────
-      const { mutGroup, oldMutGroup, mutMult, oldMutMult, poolPayouts, frlWinner, frlPayout } =
-        getActiveConfig();
-
-      Object.keys(entry).forEach((group) => {
-        if (group === "1RL Payout") {
-          entry[group] =
-            frlWinner && entry["1RL"] && entry["1RL"].toLowerCase().includes(frlWinner)
-              ? frlPayout
-              : 0;
-        } else if (group.endsWith(" Payout") && group !== "1RL Payout" && group !== "Pool Payout") {
-          // Detect Mutt / Old Mutt groups by group number OR by legacy/alternate names
-          const groupNumMatch = group.match(/Group\s+(\d+)/i);
-          if (groupNumMatch) {
-            const groupNum = parseInt(groupNumMatch[1]);
-            if (groupNum === mutGroup) {
-              entry[group] = (entry[group] || 0) * mutMult;
-            } else if (groupNum === oldMutGroup) {
-              entry[group] = (entry[group] || 0) * oldMutMult;
-            }
-          } else if (group === "Mutt Payout") {
-            entry[group] = (entry[group] || 0) * mutMult;
-          } else if (group === "Champion Mutt Payout" || group === "Old Mutt Payout") {
-            entry[group] = (entry[group] || 0) * oldMutMult;
-          }
-        }
-        if (group.endsWith("Payout")) totalPayout += entry[group] || 0;
-      });
-
-      entry["Pool Payout"] = poolPayouts[index + 1] || 0;
     }
 
     entry["Total Payout"] = totalPayout;
