@@ -31,8 +31,10 @@ jobs:
           tags: |
             # Always push :latest on main branch
             type=raw,value=latest,enable={{is_default_branch}}
-            # Short git SHA — used by Flux image automation
-            type=sha,prefix=sha-,format=short
+            # Time-sortable immutable tag consumed by Flux ImagePolicy.
+            # Format: <UTC timestamp>Z-sha-<short sha>, e.g. 20260420T153012Z-sha-abc1234
+            # Flux orders these numerically on the leading timestamp to find the newest build.
+            type=raw,value={{date 'YYYYMMDDTHHmmss' tz='Etc/UTC'}}Z-sha-{{sha}},enable={{is_default_branch}}
             # Semver from git tags (e.g. v1.2.3 → 1.2.3, 1.2, 1)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
