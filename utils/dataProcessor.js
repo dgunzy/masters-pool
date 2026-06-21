@@ -27,10 +27,8 @@ function getActiveConfig() {
   const frlWinner = (process.env.FIRST_ROUND_LEADER_WINNER || "").toLowerCase();
   const frlPayout = parseInt(process.env.FIRST_ROUND_LEADER_PAYOUT || "500000");
 
-  // Optional playoff override — set both to re-split payouts after a playoff.
-  // Leave empty (default) for no override.
-  const playoffWinner    = (process.env.PLAYOFF_WINNER     || "").toLowerCase();
-  const playoffRunnerUp  = (process.env.PLAYOFF_RUNNER_UP  || "").toLowerCase();
+  const playoffWinner   = (process.env.PLAYOFF_WINNER    || "").toLowerCase();
+  const playoffRunnerUp = (process.env.PLAYOFF_RUNNER_UP || "").toLowerCase();
 
   return { mutGroup, oldMutGroup, mutMult, oldMutMult, poolPayouts, frlWinner, frlPayout, playoffWinner, playoffRunnerUp };
 }
@@ -52,9 +50,9 @@ function updateEntryObjectsWithPayouts(payouts, year) {
     Object.keys(entry).forEach((group) => {
       const isPickGroup =
         group.startsWith("Group") ||
-        group === "Mutt"          ||  // 2024 named groups
+        group === "Mutt"          ||
         group === "Old Mutt"      ||
-        group === "Champion Mutt" ||  // 2026 name for the ×3 former-champion group
+        group === "Champion Mutt" ||
         group === "WC"            ||
         group === "1RL";
 
@@ -100,22 +98,17 @@ function enhancePlayerData(year) {
 /**
  * Calculates per-player payouts from the sorted leaderboard.
  * Handles ties by averaging the affected positions.
- * Optionally applies a playoff override via PLAYOFF_WINNER / PLAYOFF_RUNNER_UP.
- *
- * @param {Array}  leaderboardRows
- * @param {Object} payoutStructure - map of "1" → amount, "2" → amount, …
- * @returns {Object} map of "First Last" → payout amount
  */
 function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
-  const activePlayers   = leaderboardRows.filter((p) => p.status !== "cut");
+  const activePlayers     = leaderboardRows.filter((p) => p.status !== "cut");
   const sortedLeaderboard = [...activePlayers].sort(
     (a, b) => parseFloat(a.total) - parseFloat(b.total)
   );
 
   const payouts = {};
-  let lastTotal  = null;
-  let processed  = 0;
-  let tieBuffer  = [];
+  let lastTotal = null;
+  let processed = 0;
+  let tieBuffer = [];
 
   sortedLeaderboard.forEach((player, index) => {
     const total      = player.total;
@@ -140,9 +133,7 @@ function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
     }
   });
 
-  // Optional playoff override: re-assign 1st/2nd place payouts when a
-  // playoff occurred that the leaderboard API doesn't reflect correctly.
-  // Set PLAYOFF_WINNER and PLAYOFF_RUNNER_UP env vars (lowercase surnames ok).
+  // Optional playoff override
   const { playoffWinner, playoffRunnerUp } = getActiveConfig();
   if (playoffWinner && playoffRunnerUp) {
     Object.keys(payouts).forEach((name) => {
@@ -164,42 +155,47 @@ function calculatePayoutsByTotal(leaderboardRows, payoutStructure) {
 
 /**
  * Applies year-specific multiplier rules and calculates each entry's total.
- * Historical years (2024, 2025) use their original hardcoded rules.
- * The active year uses env-var-driven config.
+ *
+ * KEY FIX: For the active year, Pool Payout is intentionally excluded from
+ * Total Payout. This keeps the server sort and frontend sort perfectly in sync.
+ * The frontend adds Pool Payout back in for display purposes only.
+ *
+ * For 2025 (frozen), Pool Payout IS included in Total Payout to preserve
+ * historical display behaviour.
  */
 function adjustValuesAndCalculateTotal(year) {
   const activeYear = process.env.ACTIVE_YEAR || "2026";
 
-  // Sort by total before assigning pool-position payouts
-  if (year === activeYear || year === "2025") {
-    global[`entryObjects${year}`].sort((a, b) => {
-      return calculateRawTotal(b) - calculateRawTotal(a);
-    });
-  }
-
-  global[`entryObjects${year}`].forEach((entry, index) => {
-    let totalPayout = 0;
-
-    if (year === "2024") {
-      // ── 2024 rules (frozen) ──────────────────────────────────────────────
+  // ── 2024 (frozen) ────────────────────────────────────────────────────────
+  if (year === "2024") {
+    global[`entryObjects${year}`].forEach((entry) => {
+      let totalPayout = 0;
       Object.keys(entry).forEach((group) => {
         if (group === "1RL Payout") {
           entry[group] = entry["1RL"] && entry["1RL"].toLowerCase().includes("dechambeau")
-            ? 500000
-            : 0;
+            ? 500000 : 0;
         } else if (group === "Mutt Payout" || group === "Old Mutt Payout") {
           entry[group] = (entry[group] || 0) * 2;
         }
         if (group.endsWith("Payout")) totalPayout += entry[group] || 0;
       });
+      entry["Total Payout"] = totalPayout;
+    });
+    return;
+  }
 
-    } else if (year === "2025") {
-      // ── 2025 rules (frozen) ──────────────────────────────────────────────
+  // ── 2025 (frozen) ────────────────────────────────────────────────────────
+  if (year === "2025") {
+    // Sort first so pool positions are correct
+    global[`entryObjects${year}`].sort((a, b) => calculateRawTotal(b) - calculateRawTotal(a));
+
+    const poolPayouts2025 = require("../data/poolPayouts2025");
+    global[`entryObjects${year}`].forEach((entry, index) => {
+      let totalPayout = 0;
       Object.keys(entry).forEach((group) => {
         if (group === "1RL Payout") {
           entry[group] = entry["1RL"] && entry["1RL"].toLowerCase().includes("rose")
-            ? 500000
-            : 0;
+            ? 500000 : 0;
         } else if (group === "Group 9 (M) Payout") {
           entry[group] = (entry[group] || 0) * 2;
         } else if (group === "Group 10 (OM) Payout") {
@@ -207,44 +203,73 @@ function adjustValuesAndCalculateTotal(year) {
         }
         if (group.endsWith("Payout")) totalPayout += entry[group] || 0;
       });
+      entry["Pool Payout"]  = poolPayouts2025[index + 1] || 0;
+      entry["Total Payout"] = totalPayout + entry["Pool Payout"];
+    });
+    return;
+  }
 
-      const poolPayouts2025 = require("../data/poolPayouts2025");
-      entry["Pool Payout"] = poolPayouts2025[index + 1] || 0;
+  // ── Active year ───────────────────────────────────────────────────────────
+  //
+  // TWO-PASS APPROACH:
+  //
+  // Pass 1 — apply multipliers, calculate Total Payout (tournament earnings only,
+  //           no Pool Payout). Pool Payout is reset to 0 so it can't bleed into
+  //           the sort.
+  //
+  // Pass 2 — sort by Total Payout descending, then assign Pool Payout by
+  //           position. Pool Payout is kept separate so the sort is stable and
+  //           the frontend doesn't need to subtract anything.
+  //
+  const { mutGroup, oldMutGroup, mutMult, oldMutMult, poolPayouts, frlWinner, frlPayout } =
+    getActiveConfig();
 
-    } else {
-      // ── Active year — all rules from env vars ────────────────────────────
-      const { mutGroup, oldMutGroup, mutMult, oldMutMult, poolPayouts, frlWinner, frlPayout } =
-        getActiveConfig();
+  // Pass 1: tournament earnings
+  global[`entryObjects${year}`].forEach((entry) => {
+    let totalPayout = 0;
 
-      Object.keys(entry).forEach((group) => {
-        if (group === "1RL Payout") {
-          entry[group] =
-            frlWinner && entry["1RL"] && entry["1RL"].toLowerCase().includes(frlWinner)
-              ? frlPayout
-              : 0;
-        } else if (group.endsWith(" Payout") && group !== "1RL Payout" && group !== "Pool Payout") {
-          // Detect Mutt / Old Mutt groups by group number OR by legacy/alternate names
-          const groupNumMatch = group.match(/Group\s+(\d+)/i);
-          if (groupNumMatch) {
-            const groupNum = parseInt(groupNumMatch[1]);
-            if (groupNum === mutGroup) {
-              entry[group] = (entry[group] || 0) * mutMult;
-            } else if (groupNum === oldMutGroup) {
-              entry[group] = (entry[group] || 0) * oldMutMult;
-            }
-          } else if (group === "Mutt Payout") {
+    Object.keys(entry).forEach((group) => {
+      if (group === "Pool Payout") {
+        entry[group] = 0; // clear from any previous run
+        return;
+      }
+
+      if (group === "1RL Payout") {
+        entry[group] =
+          frlWinner && entry["1RL"] && entry["1RL"].toLowerCase().includes(frlWinner)
+            ? frlPayout
+            : 0;
+      } else if (group.endsWith(" Payout") && group !== "1RL Payout") {
+        const groupNumMatch = group.match(/Group\s+(\d+)/i);
+        if (groupNumMatch) {
+          const groupNum = parseInt(groupNumMatch[1]);
+          if (groupNum === mutGroup) {
             entry[group] = (entry[group] || 0) * mutMult;
-          } else if (group === "Champion Mutt Payout" || group === "Old Mutt Payout") {
+          } else if (groupNum === oldMutGroup) {
             entry[group] = (entry[group] || 0) * oldMutMult;
           }
+        } else if (group === "Mutt Payout") {
+          entry[group] = (entry[group] || 0) * mutMult;
+        } else if (group === "Champion Mutt Payout" || group === "Old Mutt Payout") {
+          entry[group] = (entry[group] || 0) * oldMutMult;
         }
-        if (group.endsWith("Payout")) totalPayout += entry[group] || 0;
-      });
+      }
 
-      entry["Pool Payout"] = poolPayouts[index + 1] || 0;
-    }
+      // Accumulate — exclude Pool Payout from Total Payout
+      if (group.endsWith("Payout") && group !== "Pool Payout") {
+        totalPayout += entry[group] || 0;
+      }
+    });
 
     entry["Total Payout"] = totalPayout;
+  });
+
+  // Pass 2: stable sort → assign pool position payouts
+  global[`entryObjects${year}`].sort((a, b) => b["Total Payout"] - a["Total Payout"]);
+  global[`entryObjects${year}`].forEach((entry, index) => {
+    entry["Pool Payout"] = poolPayouts[index + 1] || 0;
+    // NOTE: Total Payout intentionally does NOT include Pool Payout.
+    // The frontend sums them for display: entry["Total Payout"] + entry["Pool Payout"]
   });
 }
 
@@ -252,16 +277,10 @@ function adjustValuesAndCalculateTotal(year) {
 // Name matching
 // ---------------------------------------------------------------------------
 
-/**
- * Matches a golfer name from the CSV to a key in the payouts map, handling
- * known name-collision edge cases (Højgaard twins, Scott/Scheffler, Kim twins).
- */
 function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
   let payoutName = null;
 
   if (golferName.includes("højgaard") || golferName.includes("hojgaard")) {
-    // Must match first name to distinguish the twins.
-    // Handle both ø and plain-o spellings in CSV and API names.
     const isNicolai = golferName.includes("nicolai");
     const isRasmus  = golferName.includes("rasmus");
     payoutName = Object.keys(payouts).find((key) => {
@@ -269,7 +288,7 @@ function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
       if (!k.includes("højgaard") && !k.includes("hojgaard")) return false;
       if (isNicolai) return k.includes("nicolai");
       if (isRasmus)  return k.includes("rasmus");
-      return true; // No first name given — take the first Højgaard found
+      return true;
     });
 
   } else if (golferName === "scott") {
@@ -282,15 +301,12 @@ function matchGolferAndAssignPayout(golferName, group, entry, payouts) {
     );
 
   } else if (golferName === "kim") {
-    // Multiple Kims possible — prefer Si Woo Kim (most common Masters appearance),
-    // then Tom Kim, then Michael Kim.
     const siWooKim   = Object.keys(payouts).find((k) => k.toLowerCase().includes("si woo kim"));
     const tomKim     = Object.keys(payouts).find((k) => k.toLowerCase().includes("tom kim"));
     const michaelKim = Object.keys(payouts).find((k) => k.toLowerCase().includes("michael kim"));
     payoutName = siWooKim || tomKim || michaelKim;
 
   } else {
-    // Precise word-boundary match first, then loose fallback
     payoutName = Object.keys(payouts).find((key) => {
       const k = key.toLowerCase();
       return (
@@ -323,11 +339,8 @@ function distributeTiePayout(tieBuffer, startIndex, payoutStructure, payouts) {
   const total = tieBuffer.reduce((sum, _, i) => {
     return sum + (payoutStructure[(startIndex + i + 1).toString()] || 0);
   }, 0);
-
   const avg = total / tieBuffer.length;
-  tieBuffer.forEach((name) => {
-    payouts[name] = avg;
-  });
+  tieBuffer.forEach((name) => { payouts[name] = avg; });
 }
 
 // ---------------------------------------------------------------------------
